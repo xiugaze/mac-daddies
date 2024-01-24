@@ -16,6 +16,7 @@
 #define STK_BASE 0xE000E010
 #define TIM2  0x40000000
 #define TIM3  0x40000400
+#define TIM4  0x40000800
 
 #define CPACR 0xE000ED88
 #define NVIC_ISER 0xE000E100
@@ -24,6 +25,8 @@
 #define GPIOB_EN (1<<1);
 #define TIM2_EN  (1<<0);
 #define TIM3_EN  (1<<1);
+#define TIM4_EN  (1<<2);
+
 #define FPU_EN (0xF << 20);
 
 

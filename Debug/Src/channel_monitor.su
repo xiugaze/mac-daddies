@@ -1,0 +1,4 @@
+../Src/channel_monitor.c:18:6:user_led_init	4	static
+../Src/channel_monitor.c:24:10:tic_value	4	static
+../Src/channel_monitor.c:32:6:channel_monitor_init	4	static
+../Src/channel_monitor.c:37:6:tim4_init	4	static

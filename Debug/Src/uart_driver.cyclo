@@ -1,0 +1,5 @@
+../Src/uart_driver.c:14:5:_read	3
+../Src/uart_driver.c:33:5:_write	2
+../Src/uart_driver.c:46:6:usart2_getch	3
+../Src/uart_driver.c:60:6:usart2_putch	2
+../Src/uart_driver.c:65:6:init_usart2	1
