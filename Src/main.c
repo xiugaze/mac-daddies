@@ -28,7 +28,7 @@
 int main(void) {
 	init_usart2(57600,F_CPU);
 
-	user_led_init();
+	monitor_led_init();
     tim4_init();
 	printf("Hello World!\n");
 

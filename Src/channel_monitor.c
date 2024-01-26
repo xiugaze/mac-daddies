@@ -35,6 +35,7 @@ void tim4_init();
 
 void monitor_led_init();
 void monitor_led_set(channel_state);
+
 /*
  * TODO:
  * - Implement fudge factor (error%) for 1.1ms
@@ -96,7 +97,7 @@ void TIM4_IRQHandler(void) {
 	if(tic) {
 		tim4->CNT = 0;
 		state = BUSY;
-		toggle_user_led();
+//		toggle_user_led();
 	} else if(toc) {
 		int line_state = (gpiob->IDR >> 6) & 0b01;
 		if(line_state) {
@@ -105,11 +106,11 @@ void TIM4_IRQHandler(void) {
 			state = COLLISION;
 		}
 	}
-
-	set_monitor_led(state);
+	monitor_led_set(state);
 	tim4->DIER |= 0b11 << 1;  // enable interrupts
 }
 
+/*
 void ld2_init() {
 	rcc->AHB1ENR |= GPIOA_EN;
 	gpioa->MODER |= (0b01 << 5 * 2);
@@ -118,12 +119,37 @@ void ld2_init() {
 void ld2_toggle(void) {
 	gpioa->ODR ^= (1<<5);	// toggle pin 5
 }
+*/
 
 void monitor_led_init() {
-	// TODO;
+	rcc->AHB1ENR |= GPIOA_EN;
+    gpioa->MODER |= (0b01 << 0); // setting GPIOA_PIN_0 as output (Green LED)
+    gpioa->MODER |= (0b01 << 2); // setting GPIOA_PIN_1 as output (Red LED)
+    gpioa->MODER |= (0b01 << 4); // setting GPIOA_PIN_2 as output (Yellow LED)
+
 }
 void monitor_led_set(channel_state state) {
-	// TODO:
+
+    // GPIOA_PIN_0 is connected to the green LED,
+    // GPIOA_PIN_1 is connected to the red LED,
+    // GPIOA_PIN_2 is connected to the yellow LED
+	switch(state){
+	case IDLE:
+	  gpioa->ODR |= ~(1 << 0);  // turn on Green LED
+	  gpioa->ODR &= ~(11 << 1);  // turn off Red/Yellow LED's
+		break;
+	case COLLISION:
+		gpioa->ODR &= ~(101 << 0);  // turn off Green/Yellow LED's
+		gpioa->ODR |= (1 << 1);   // turn on Red LED
+		break;
+	case BUSY:
+        gpioa->ODR &= (11 << 0);   // turn off Green/Red LED's
+        gpioa->ODR |= ~(1 << 2);  // turn on Yellow LED
+		break;
+	default:
+		gpioa->ODR &= (111 << 0); //turn off all LED's
+	 break;
+	}
 }
 
 
