@@ -17,6 +17,7 @@
  */
 
 #include <stdint.h>
+#include <unistd.h>
 #include "channel_monitor.h"
 #include "uart_driver.h"
 
@@ -26,8 +27,13 @@
 
 int main(void) {
 	init_usart2(57600,F_CPU);
-	printf("Hello World!\n");
+
 	user_led_init();
+    tim4_init();
+	printf("Hello World!\n");
+
     /* Loop forever */
-	for(;;);
+	while(1) {
+
+	}
 }
