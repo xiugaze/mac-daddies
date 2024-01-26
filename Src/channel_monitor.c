@@ -9,6 +9,9 @@
 
 #include <stdint.h>
 #include "regs.h"
+#include "channel_monitor.h";
+
+#define CYCLES_1_1_MS 17600
 
 static volatile RCC *const rcc = (RCC*)RCC_BASE;
 static volatile GPIOX *const gpiob = (GPIOX*) GPIOB;
@@ -25,19 +28,28 @@ static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
  *
  */
 
-void user_led_init() {
-	rcc->AHB1ENR |= GPIOA_EN;
-	gpioa->MODER |= (0b01 << 5 * 2);
-}
+void ld2_init();
+void ld2_toggle();
+void channel_monitor_init();
+void tim4_init();
 
+void monitor_led_init();
+void monitor_led_set(channel_state);
+/*
+ * TODO:
+ * - Implement fudge factor (error%) for 1.1ms
+ * - Implement channel monitor leds
+ */
 void channel_monitor_init(void) {
-
+	ld2_init();
+	tim4_init();
 }
 
-
+// channel 1: tic
+// channel 2: toc
 void tim4_init(void) {
 
-	/* PB6 is the input pin for TIC */
+	/* PB6 is the input pin for TIC on TIM4_CH1 */
 	rcc->AHB1ENR |= GPIOB_EN;			// enable GPIOB in RCC
 	gpiob->AFRL  |= (0b0010 << 6 * 4); 	// PB6 is AF02 (TIM4_CH1)
 	gpiob->MODER |= (0b10 << 6*2);
@@ -45,13 +57,18 @@ void tim4_init(void) {
 	/* TIM4 setup */
 	rcc->APB1ENR |= TIM4_EN;			// enable TIM4 in RCC
 
+	/* configure TIM4_CH1 as TIC */
 	tim4->CCMR1  &= ~(0b11 << 0);		// clear CC1S bits
-	tim4->CCMR1  |=  (0b01 << 0);		// tim4 is in input capture mode
+	tim4->CCMR1  |=  (0b01 << 0);		// tim4_ch1 is in input capture mode
 
-	tim4->CCER &=  ~(1 << 3 | 1 << 1);		// clear edge config, set to rising
+	tim4->CCER &=  ~(1 << 3 | 1 << 1);	// clear edge config, set to rising
 	tim4->CCER |=   (1 << 3 | 1 << 1); 	// trigger TIC on either edge
-	tim4->ARR |= ~(0b0);
 
+	/* configure TIM4_CH2 as TOC (just free running with an interrupt */
+	tim4->CCMR1 &= ~(0b11 << 8);		// clear CC2S bits, tim4_ch2 is in output mode
+
+
+	tim4->CCR2 = CYCLES_1_1_MS;
 
 //	CC1 channel configured as input:
 //	This bit determines if a capture of the counter value can actually be done into the input
@@ -59,31 +76,57 @@ void tim4_init(void) {
 //	0: Capture disabled
 //	1: Capture enabled
 	tim4->CCER |= (0b01 << 0); // enable input capture
-	tim4->DIER |= 0b01 << 1;   // enable TIC interrupts
+	tim4->DIER |= 0b11 << 1;   // enable TIC interrupts
 
 	nvic_iser[0] |= (1 << 30); // TIM4 global interrupt is in NVIC_ISER0[30]
+	tim4->CR1 |= 1; // start the timer
 }
 
-//void tim6_init(void) {
-//	rcc->
-//}
+void TIM4_IRQHandler(void) {
+	static channel_state state = IDLE;
+	tim4->DIER &= ~(0b11 << 1);  // reset CC1IE (Interrupt enable)
+	/* interrupt body */
 
-void toggle_user_led(void) {
+
+	uint32_t status = tim4->SR;				// read the status register
+	tim4->SR = 0; 	        				// clear all flags
+	uint32_t tic = (status >> 1) & 0b01; // 1 if from tic
+	uint32_t toc = (status >> 2) & 0b01; // 1 if from toc
+
+	if(tic) {
+		tim4->CNT = 0;
+		state = BUSY;
+		toggle_user_led();
+	} else if(toc) {
+		int line_state = (gpiob->IDR >> 6) & 0b01;
+		if(line_state) {
+			state = IDLE;
+		} else {
+			state = COLLISION;
+		}
+	}
+
+	set_monitor_led(state);
+	tim4->DIER |= 0b11 << 1;  // enable interrupts
+}
+
+void ld2_init() {
+	rcc->AHB1ENR |= GPIOA_EN;
+	gpioa->MODER |= (0b01 << 5 * 2);
+}
+
+void ld2_toggle(void) {
 	gpioa->ODR ^= (1<<5);	// toggle pin 5
 }
 
-
-
-
-void TIM4_IRQHandler(void) {
-	tim4->DIER &= ~(0b01 << 1);  // reset CC1IE (Interrupt enable)
-	tim4->SR = 0; 				 // clear all flags
-	/* interrupt body */
-	toggle_user_led();
-
-	tim4->DIER |= 0b01 << 1;  // enable interrupts
-
+void monitor_led_init() {
+	// TODO;
 }
+void monitor_led_set(channel_state state) {
+	// TODO:
+}
+
+
 
 
 

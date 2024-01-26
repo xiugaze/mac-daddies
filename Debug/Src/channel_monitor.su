@@ -1,5 +1,6 @@
-../Src/channel_monitor.c:28:6:user_led_init	4	static
-../Src/channel_monitor.c:33:6:channel_monitor_init	4	static
-../Src/channel_monitor.c:38:6:tim4_init	4	static
-../Src/channel_monitor.c:71:6:toggle_user_led	4	static
-../Src/channel_monitor.c:78:6:TIM4_IRQHandler	8	static
+../Src/channel_monitor.c:31:6:user_led_init	4	static
+../Src/channel_monitor.c:36:6:channel_monitor_init	4	static
+../Src/channel_monitor.c:42:6:tim4_init	4	static
+../Src/channel_monitor.c:80:6:toggle_user_led	4	static
+../Src/channel_monitor.c:84:6:set_monitor_led	16	static
+../Src/channel_monitor.c:99:6:TIM4_IRQHandler	24	static

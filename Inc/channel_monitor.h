@@ -14,9 +14,7 @@ typedef enum {
 	COLLISION,
 } channel_state;
 
-
-void user_led_init();
-void toggle_user_led();
+void channel_monitor_init();
 
 
 #endif /* CHANNEL_MONITOR_H_ */
