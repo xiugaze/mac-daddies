@@ -28,8 +28,8 @@
 int main(void) {
 	init_usart2(57600,F_CPU);
 
-	monitor_led_init();
-    tim4_init();
+
+	channel_monitor_init();
 	printf("Hello World!\n");
 
     /* Loop forever */

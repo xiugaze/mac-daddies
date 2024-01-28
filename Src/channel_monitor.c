@@ -97,7 +97,6 @@ void TIM4_IRQHandler(void) {
 	if(tic) {
 		tim4->CNT = 0;
 		state = BUSY;
-//		toggle_user_led();
 	} else if(toc) {
 		int line_state = (gpiob->IDR >> 6) & 0b01;
 		if(line_state) {
