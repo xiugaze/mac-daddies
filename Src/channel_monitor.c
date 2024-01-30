@@ -25,7 +25,6 @@ static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
  *   we're going to stop, restart, and start TIM6.
  * - TIM6 will get started by TIM4_IRQ.
  *
- *
  */
 
 void ld2_init();
@@ -42,7 +41,7 @@ void monitor_led_set(channel_state);
  * - Implement channel monitor leds
  */
 void channel_monitor_init(void) {
-	ld2_init();
+	monitor_led_init();
 	tim4_init();
 }
 
@@ -85,28 +84,39 @@ void tim4_init(void) {
 
 void TIM4_IRQHandler(void) {
 	static channel_state state = IDLE;
-	tim4->DIER &= ~(0b11 << 1);  // reset CC1IE (Interrupt enable)
+	static int line_state;
+	//tim4->DIER &= ~(0b11 << 1);  // reset CC1IE (Interrupt enable)
 	/* interrupt body */
 
+	//uint32_t status = tim4->SR;				// read the status register
+	//tim4->SR = 0; 	        				// clear all flags
+	//uint32_t tic = (status >> 1) & 0b01; // 1 if from tic
+	//uint32_t toc = (status >> 2) & 0b01; // 1 if from toc
 
-	uint32_t status = tim4->SR;				// read the status register
-	tim4->SR = 0; 	        				// clear all flags
-	uint32_t tic = (status >> 1) & 0b01; // 1 if from tic
-	uint32_t toc = (status >> 2) & 0b01; // 1 if from toc
 
-	if(tic) {
-		tim4->CNT = 0;
-		state = BUSY;
-	} else if(toc) {
-		int line_state = (gpiob->IDR >> 6) & 0b01;
+//	} else if(toc) {s
+	if(((tim4->SR >> 2) & 0b01) & (tim4->DIER >> 2) & 1) {
+		tim4->DIER &= ~(1 << 2);
+
 		if(line_state) {
 			state = IDLE;
 		} else {
 			state = COLLISION;
 		}
+		// disable
 	}
+
+	if(((tim4->SR >> 1) &  0b01) & (tim4->DIER >> 1) & 1) {
+			// edge
+			line_state = (gpiob->IDR >> 6) & 0b01;
+			tim4->CNT = 0;
+			tim4->DIER |= (1 << 2);
+			state = BUSY;
+		}
+
 	monitor_led_set(state);
-	tim4->DIER |= 0b11 << 1;  // enable interrupts
+	tim4->SR = 0;
+	//tim4->DIER |= 0b11 << 1;  // enable interrupts
 }
 
 /*
@@ -122,32 +132,28 @@ void ld2_toggle(void) {
 
 void monitor_led_init() {
 	rcc->AHB1ENR |= GPIOA_EN;
+	gpioa->MODER &= ~(0b111111);
     gpioa->MODER |= (0b01 << 0); // setting GPIOA_PIN_0 as output (Green LED)
     gpioa->MODER |= (0b01 << 2); // setting GPIOA_PIN_1 as output (Red LED)
-    gpioa->MODER |= (0b01 << 4); // setting GPIOA_PIN_2 as output (Yellow LED)
-
+    gpioa->MODER |= (0b01 << 8); // setting GPIOA_PIN_2 as output (Yellow LED)
 }
+
 void monitor_led_set(channel_state state) {
 
     // GPIOA_PIN_0 is connected to the green LED,
     // GPIOA_PIN_1 is connected to the red LED,
     // GPIOA_PIN_2 is connected to the yellow LED
+	gpioa->ODR &= ~(0b010011);
 	switch(state){
 	case IDLE:
-	  gpioa->ODR |= ~(1 << 0);  // turn on Green LED
-	  gpioa->ODR &= ~(11 << 1);  // turn off Red/Yellow LED's
+	  gpioa->ODR |= 1 << 0;  // turn on Green LED
 		break;
 	case COLLISION:
-		gpioa->ODR &= ~(101 << 0);  // turn off Green/Yellow LED's
-		gpioa->ODR |= (1 << 1);   // turn on Red LED
+		gpioa->ODR |= 1 << 1;  // turn off Green/Yellow LED's
 		break;
 	case BUSY:
-        gpioa->ODR &= (11 << 0);   // turn off Green/Red LED's
-        gpioa->ODR |= ~(1 << 2);  // turn on Yellow LED
+        gpioa->ODR |= 1 << 4;  // turn off Green/Red LED's
 		break;
-	default:
-		gpioa->ODR &= (111 << 0); //turn off all LED's
-	 break;
 	}
 }
 
