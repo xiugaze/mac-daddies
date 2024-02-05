@@ -31,6 +31,8 @@ int transmit_halfbits(void);
 
 int get_transmission(void){
 
+	//check if 0 if it is then write 101010101010 a bunch of time set length to whatever and then do an early return
+
 	//Prompt user and grab input
 	printf("\nEnter a message: \n");
 	fgets(userInput, sizeof(userInput), stdin);
@@ -40,9 +42,22 @@ int get_transmission(void){
 	if (len > 0 && userInput[len - 1] == '\n') {
 	     userInput[len - 1] = '\0';
 	}
-
 	//Encode the message and add it to the transmission buffer
 	int bufferIndex = 0;
+
+	char nullstring[] = "";
+	if(strcmp(userInput, nullstring)){
+		for(int i =0; i < 255; i++){
+			uint16_t null_write = 0;
+			transmissionBuffer[bufferIndex] = null_write ^ 1;		// first half of Manchester bit
+			transmissionBuffer[bufferIndex+1] = null_write ^ 0;   // second half of Manchester bit
+			bufferIndex += 2; // advance the pointer twice
+		}
+
+		return transmit_halfbits();
+	}
+
+
 	for (int i = 0; i < len; i++) {
 
 		char currentChar = userInput[i];
