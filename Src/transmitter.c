@@ -16,6 +16,7 @@ char userInput[100];
 //Assuming a maximum of 100 characters, each represented by 2 half-bits
 uint16_t transmissionBuffer[200];
 static int transmission_length = -1;
+uint16_t testbuffer[] = {1, 1, 0, 0, 1, 0, 1, 0};
 
 static volatile TIMX_16* const tim3 = (TIMX_16*)TIM3;
 static volatile RCC* const rcc = (RCC*) RCC_BASE;
@@ -84,6 +85,7 @@ void transmit_init() {
  * and write the value to the IDR.
  */
 void TIM3_IRQHandler(void) {
+	tim3->SR=0;
 	tim3->CCR1 += HALF_BIT_PERIOD;  // next interrupt fires last time + 500uS
 	static int buffer_position = 0;
 
@@ -91,11 +93,13 @@ void TIM3_IRQHandler(void) {
 	gpioa->ODR &= ~(0b01 << 6);
 
 	// write the current half-bit to the register
-	gpioa->ODR |= (transmissionBuffer[buffer_position++] | 1) << 6;
+	//gpioa->ODR |= (transmissionBuffer[buffer_position++] | 1) << 6;
+	gpioa->ODR |= (testbuffer[buffer_position++]) << 6;
 
 	// if transmission is done
-	if(buffer_position == transmission_length) {
-		tim3->DIER &= (0b01 << 1); // disable interrupts
+	//if(buffer_position == transmission_length) {
+	if(buffer_position == 8) {
+		tim3->DIER &= ~(0b01 << 1); // disable interrupts
 		transmission_length = -1;  // don't transmit
 		buffer_position = 0;	   // reset the buffer position
 	}

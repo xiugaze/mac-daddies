@@ -31,7 +31,8 @@ int main(void) {
 	init_usart2(57600,F_CPU);
 
 	printf("Test print\n");
-
+	// NOTE: for some reason prints are not working, does
+	// the UART get interrupted ?
 	channel_monitor_init();
 	transmit_init();
 
