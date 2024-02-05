@@ -1,0 +1,4 @@
+../Src/transmitter.c:25:5:get_transmission	5
+../Src/transmitter.c:60:6:transmit_init	1
+../Src/transmitter.c:86:6:TIM3_IRQHandler	2
+../Src/transmitter.c:104:5:transmit_halfbits	2

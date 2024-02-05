@@ -1,5 +1,5 @@
 ../Src/channel_monitor.c:43:6:channel_monitor_init	8	static
 ../Src/channel_monitor.c:50:6:tim4_init	4	static
 ../Src/channel_monitor.c:85:6:TIM4_IRQHandler	8	static
-../Src/channel_monitor.c:137:6:monitor_led_init	4	static
-../Src/channel_monitor.c:145:6:monitor_led_set	16	static
+../Src/channel_monitor.c:131:6:monitor_led_init	4	static
+../Src/channel_monitor.c:139:6:monitor_led_set	16	static

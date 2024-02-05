@@ -68,7 +68,7 @@ void tim4_init(void) {
 	tim4->CCMR1 &= ~(0b11 << 8);		// clear CC2S bits, tim4_ch2 is in output mode
 
 
-	tim4->CCR2 = CYCLES_1_1_MS;
+	tim4->CCR2 = CYCLES_1_1_MS;			// Timeout interrupt fires
 
 //	CC1 channel configured as input:
 //	This bit determines if a capture of the counter value can actually be done into the input
@@ -79,22 +79,13 @@ void tim4_init(void) {
 	tim4->DIER |= 0b11 << 1;   // enable TIC interrupts
 
 	nvic_iser[0] |= (1 << 30); // TIM4 global interrupt is in NVIC_ISER0[30]
-	tim4->CR1 |= 1; // start the timer
+	tim4->CR1 |= 1; 		   // start the timer
 }
 
 void TIM4_IRQHandler(void) {
 	static channel_state state = IDLE;
 	static int line_state;
-	//tim4->DIER &= ~(0b11 << 1);  // reset CC1IE (Interrupt enable)
-	/* interrupt body */
 
-	//uint32_t status = tim4->SR;				// read the status register
-	//tim4->SR = 0; 	        				// clear all flags
-	//uint32_t tic = (status >> 1) & 0b01; // 1 if from tic
-	//uint32_t toc = (status >> 2) & 0b01; // 1 if from toc
-
-
-//	} else if(toc) {s
 	if(((tim4->SR >> 2) & 0b01) & (tim4->DIER >> 2) & 1) {
 		tim4->DIER &= ~(1 << 2);
 
@@ -106,13 +97,20 @@ void TIM4_IRQHandler(void) {
 		// disable
 	}
 
+	/*
+	 * You were right the first time: the first read upstairs will clear
+	 * the status register. If there's a pending TIC and a pending TOC, we read
+	 * it up there clearing the interrupt
+	 */
 	if(((tim4->SR >> 1) &  0b01) & (tim4->DIER >> 1) & 1) {
 			// edge
-			line_state = (gpiob->IDR >> 6) & 0b01;
-			tim4->CNT = 0;
-			tim4->DIER |= (1 << 2);
-			state = BUSY;
-		}
+		line_state = (gpiob->IDR >> 6) & 0b01;
+		//tim4->CNT = 0
+		tim4->CCR2 = tim4->CCR1 + CYCLES_1_1_MS;
+		tim4->DIER |= (1 << 2);
+		state = BUSY;
+	}
+
 
 	monitor_led_set(state);
 	tim4->SR = 0;
@@ -146,14 +144,15 @@ void monitor_led_set(channel_state state) {
 	gpioa->ODR &= ~(0b010011);
 	switch(state){
 	case IDLE:
-	  gpioa->ODR |= 1 << 0;  // turn on Green LED
-		break;
-	case COLLISION:
-		gpioa->ODR |= 1 << 1;  // turn off Green/Yellow LED's
+		gpioa->ODR |= 1 << 0;  // turn on Green LED
 		break;
 	case BUSY:
-        gpioa->ODR |= 1 << 4;  // turn off Green/Red LED's
+	    gpioa->ODR |= 1 << 1;  // turn off Green/Red LED's
+	    break;
+	case COLLISION:
+		gpioa->ODR |= 1 << 4;  // turn off Green/Yellow LED's
 		break;
+
 	}
 }
 

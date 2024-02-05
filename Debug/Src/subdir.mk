@@ -9,6 +9,7 @@ C_SRCS += \
 ../Src/main.c \
 ../Src/syscalls.c \
 ../Src/sysmem.c \
+../Src/transmitter.c \
 ../Src/uart_driver.c 
 
 OBJS += \
@@ -16,6 +17,7 @@ OBJS += \
 ./Src/main.o \
 ./Src/syscalls.o \
 ./Src/sysmem.o \
+./Src/transmitter.o \
 ./Src/uart_driver.o 
 
 C_DEPS += \
@@ -23,6 +25,7 @@ C_DEPS += \
 ./Src/main.d \
 ./Src/syscalls.d \
 ./Src/sysmem.d \
+./Src/transmitter.d \
 ./Src/uart_driver.d 
 
 
@@ -33,7 +36,7 @@ Src/%.o Src/%.su Src/%.cyclo: ../Src/%.c Src/subdir.mk
 clean: clean-Src
 
 clean-Src:
-	-$(RM) ./Src/channel_monitor.cyclo ./Src/channel_monitor.d ./Src/channel_monitor.o ./Src/channel_monitor.su ./Src/main.cyclo ./Src/main.d ./Src/main.o ./Src/main.su ./Src/syscalls.cyclo ./Src/syscalls.d ./Src/syscalls.o ./Src/syscalls.su ./Src/sysmem.cyclo ./Src/sysmem.d ./Src/sysmem.o ./Src/sysmem.su ./Src/uart_driver.cyclo ./Src/uart_driver.d ./Src/uart_driver.o ./Src/uart_driver.su
+	-$(RM) ./Src/channel_monitor.cyclo ./Src/channel_monitor.d ./Src/channel_monitor.o ./Src/channel_monitor.su ./Src/main.cyclo ./Src/main.d ./Src/main.o ./Src/main.su ./Src/syscalls.cyclo ./Src/syscalls.d ./Src/syscalls.o ./Src/syscalls.su ./Src/sysmem.cyclo ./Src/sysmem.d ./Src/sysmem.o ./Src/sysmem.su ./Src/transmitter.cyclo ./Src/transmitter.d ./Src/transmitter.o ./Src/transmitter.su ./Src/uart_driver.cyclo ./Src/uart_driver.d ./Src/uart_driver.o ./Src/uart_driver.su
 
 .PHONY: clean-Src
 

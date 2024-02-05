@@ -1,0 +1,4 @@
+../Src/transmitter.c:25:5:get_transmission	32	static
+../Src/transmitter.c:60:6:transmit_init	4	static
+../Src/transmitter.c:86:6:TIM3_IRQHandler	4	static
+../Src/transmitter.c:104:5:transmit_halfbits	4	static

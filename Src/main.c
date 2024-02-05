@@ -18,8 +18,10 @@
 
 #include <stdint.h>
 #include <unistd.h>
+#include <stdio.h>
 #include "channel_monitor.h"
 #include "uart_driver.h"
+#include "transmitter.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
@@ -28,12 +30,15 @@
 int main(void) {
 	init_usart2(57600,F_CPU);
 
+	printf("Test print\n");
 
 	channel_monitor_init();
-	printf("Hello World!\n");
+	transmit_init();
+
 
     /* Loop forever */
 	while(1) {
-
+		printf("looping!\n");
+		get_transmission();
 	}
 }
