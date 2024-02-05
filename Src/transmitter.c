@@ -16,7 +16,7 @@
 char userInput[100];
 //Assuming a maximum of 100 characters, each represented by 2 half-bits
 // 01110100
-uint16_t transmissionBuffer[2048];
+uint16_t transmissionBuffer[200];
 uint16_t testbuffer[] = {0, 0, 1, 0, 1, 0, 1, 0};
 static int transmission_length = -1;
 //uint16_t testbuffer[] = {0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0};
@@ -76,6 +76,7 @@ void transmit_init() {
 //	gpioa->MODER |= (0b10 << 6*2);		// PA6 is in AF mode
 	gpioa->MODER  &= ~(0b11 << 6*2);
 	gpioa->MODER  |=  (0b01 << 6*2);	// PA6 is in output mode
+	gpioa->ODR    |=  (1 << 6);
 
 	// NOTE: not sure if this is necessary either?
 	//gpioa->IDR 	  |=  (0b01 << 6); 		// line starts high?
