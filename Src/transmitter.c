@@ -14,14 +14,18 @@
 
 char userInput[100];
 //Assuming a maximum of 100 characters, each represented by 2 half-bits
+// 01110100
 uint16_t transmissionBuffer[200];
 static int transmission_length = -1;
-uint16_t testbuffer[] = {1, 1, 0, 0, 1, 0, 1, 0};
+//uint16_t testbuffer[] = {0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0};
 
 static volatile TIMX_16* const tim3 = (TIMX_16*)TIM3;
 static volatile RCC* const rcc = (RCC*) RCC_BASE;
-static volatile GPIOX* const gpioa = GPIOA;
+static volatile GPIOX* const gpioa = (GPIOX*)GPIOA;
 static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
+
+
+int transmit_halfbits(void);
 
 int get_transmission(void){
 
@@ -38,13 +42,17 @@ int get_transmission(void){
 	//Encode the message and add it to the transmission buffer
 	int bufferIndex = 0;
 	for (int i = 0; i < len; i++) {
+
 		char currentChar = userInput[i];
-		for (int j = BITS_PER_CHAR - 1; j >= 0; j--) {
+		int j = (sizeof(char)*8) - 1;
+		while(j >= 0) {
 			uint16_t to_write = (currentChar >> j) & 1;
-			transmissionBuffer[bufferIndex++] = to_write;
+			transmissionBuffer[bufferIndex] = to_write ^ 1;		// first half of Manchester bit
+			transmissionBuffer[bufferIndex+1] = to_write ^ 0;   // second half of Manchester bit
+			bufferIndex += 2; // advance the pointer twice
+			j--;
 		}
 	}
-
 
 	//transmit_halfbits(transmissionBuffer, strlen(userInput) * BITS_PER_CHAR);
 
@@ -68,7 +76,7 @@ void transmit_init() {
 	gpioa->MODER  |=  (0b01 << 6*2);	// PA6 is in output mode
 
 	// NOTE: not sure if this is necessary either?
-	gpioa->IDR 	  |=  (0b01 << 6); 		// line starts high?
+	//gpioa->IDR 	  |=  (0b01 << 6); 		// line starts high?
 
 
 	rcc->APB1ENR |= TIM3_EN;			// enable TIM3
@@ -85,24 +93,28 @@ void transmit_init() {
  * and write the value to the IDR.
  */
 void TIM3_IRQHandler(void) {
+
 	tim3->SR=0;
-	tim3->CCR1 += HALF_BIT_PERIOD;  // next interrupt fires last time + 500uS
+
 	static int buffer_position = 0;
+
+	if(buffer_position == transmission_length) {
+		tim3->DIER &= ~(0b01 << 1); // disable interrupts
+		transmission_length = -1;  	// don't transmit
+		buffer_position = 0;	   	// reset the buffer position
+		gpioa->ODR |= 1 << 6;		// let the line go high
+	}
+
+	tim3->CCR1 += HALF_BIT_PERIOD;  // next interrupt fires last time + 500uS
+
 
 	// clear whatever's written
 	gpioa->ODR &= ~(0b01 << 6);
 
 	// write the current half-bit to the register
 	//gpioa->ODR |= (transmissionBuffer[buffer_position++] | 1) << 6;
-	gpioa->ODR |= (testbuffer[buffer_position++]) << 6;
+	gpioa->ODR |= (transmissionBuffer[buffer_position++]) << 6;
 
-	// if transmission is done
-	//if(buffer_position == transmission_length) {
-	if(buffer_position == 8) {
-		tim3->DIER &= ~(0b01 << 1); // disable interrupts
-		transmission_length = -1;  // don't transmit
-		buffer_position = 0;	   // reset the buffer position
-	}
 }
 
 int transmit_halfbits(void) {
@@ -114,5 +126,4 @@ int transmit_halfbits(void) {
 	// enable timer3 interrupts in DIER
 	tim3->DIER |= 0b01 << 1;   					// enable interrupts on channel 1
 	return 0;
-
 }

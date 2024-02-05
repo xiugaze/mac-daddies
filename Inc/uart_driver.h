@@ -9,6 +9,7 @@
 #define UART_DRIVER_H_
 
 #include <inttypes.h>
+
 #define F_CPU 16000000UL
 
 // RCC registers
