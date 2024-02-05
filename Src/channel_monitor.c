@@ -35,6 +35,12 @@ void tim4_init();
 void monitor_led_init();
 void monitor_led_set(channel_state);
 
+static channel_state state = IDLE;
+
+channel_state channel_monitor_get_state(void) {
+	return state;
+}
+
 /*
  * TODO:
  * - Implement fudge factor (error%) for 1.1ms
@@ -83,7 +89,7 @@ void tim4_init(void) {
 }
 
 void TIM4_IRQHandler(void) {
-	static channel_state state = IDLE;
+	state = IDLE;
 	static int line_state;
 
 	if(((tim4->SR >> 2) & 0b01) & (tim4->DIER >> 2) & 1) {

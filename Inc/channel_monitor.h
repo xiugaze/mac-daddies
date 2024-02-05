@@ -15,6 +15,7 @@ typedef enum {
 } channel_state;
 
 void channel_monitor_init();
+channel_state channel_monitor_get_state(void);
 
 
 #endif /* CHANNEL_MONITOR_H_ */
