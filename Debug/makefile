@@ -59,8 +59,8 @@ all: main-build
 main-build: mac-daddies.elf secondary-outputs
 
 # Tool invocations
-mac-daddies.elf mac-daddies.map: $(OBJS) $(USER_OBJS) C:\Users\andreanoc\OneDrive\ -\ Milwaukee\ School\ of\ Engineering\cpe3300\mac-daddies\STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "mac-daddies.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\andreanoc\OneDrive - Milwaukee School of Engineering\cpe3300\mac-daddies\STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="mac-daddies.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+mac-daddies.elf mac-daddies.map: $(OBJS) $(USER_OBJS) C:\Users\ratschanp\STM32CubeIDE\workspace_1.14.1\mac-daddies\STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "mac-daddies.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\ratschanp\STM32CubeIDE\workspace_1.14.1\mac-daddies\STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="mac-daddies.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

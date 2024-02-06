@@ -44,18 +44,18 @@ int get_transmission(void){
 	//Encode the message and add it to the transmission buffer
 	int bufferIndex = 0;
 
-//	char nullstring[] = "";
-//	if(!strcmp(userInput, "zero")){
-//		for(int i =0; i < 255; i++){
-//			uint16_t null_write = 0;
-//			transmissionBuffer[bufferIndex] = null_write ^ 1;		// first half of Manchester bit
-//			transmissionBuffer[bufferIndex+1] = null_write ^ 0;   // second half of Manchester bit
-//			bufferIndex += 2; // advance the pointer twice
-//		}
-//		transmission_length = strlen(userInput) * BITS_PER_CHAR * 2;
-//
-//		return transmit_halfbits();
-//	}
+	//char nullstring[] = "";
+	if(!strcmp(userInput, "\\0")){
+		for(int i =0; i < 255; i++){
+			uint16_t null_write = 0;
+			transmissionBuffer[bufferIndex] = null_write ^ 1;		// first half of Manchester bit
+			transmissionBuffer[bufferIndex+1] = null_write ^ 0;   // second half of Manchester bit
+			bufferIndex += 2; // advance the pointer twice
+		}
+		transmission_length = strlen(userInput) * BITS_PER_CHAR * 2;
+
+		return transmit_halfbits();
+	}
 
 
 	for (int i = 0; i < len; i++) {
