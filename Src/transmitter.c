@@ -16,8 +16,7 @@
 char userInput[100];
 //Assuming a maximum of 100 characters, each represented by 2 half-bits
 // 01110100
-uint16_t transmissionBuffer[200];
-uint16_t testbuffer[] = {0, 0, 1, 0, 1, 0, 1, 0};
+uint16_t transmissionBuffer[1024];
 static int transmission_length = -1;
 //uint16_t testbuffer[] = {0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0};
 
@@ -45,17 +44,18 @@ int get_transmission(void){
 	//Encode the message and add it to the transmission buffer
 	int bufferIndex = 0;
 
-	char nullstring[] = "";
-	if(strcmp(userInput, nullstring)){
-		for(int i =0; i < 255; i++){
-			uint16_t null_write = 0;
-			transmissionBuffer[bufferIndex] = null_write ^ 1;		// first half of Manchester bit
-			transmissionBuffer[bufferIndex+1] = null_write ^ 0;   // second half of Manchester bit
-			bufferIndex += 2; // advance the pointer twice
-		}
-
-		return transmit_halfbits();
-	}
+//	char nullstring[] = "";
+//	if(!strcmp(userInput, "zero")){
+//		for(int i =0; i < 255; i++){
+//			uint16_t null_write = 0;
+//			transmissionBuffer[bufferIndex] = null_write ^ 1;		// first half of Manchester bit
+//			transmissionBuffer[bufferIndex+1] = null_write ^ 0;   // second half of Manchester bit
+//			bufferIndex += 2; // advance the pointer twice
+//		}
+//		transmission_length = strlen(userInput) * BITS_PER_CHAR * 2;
+//
+//		return transmit_halfbits();
+//	}
 
 
 	for (int i = 0; i < len; i++) {
@@ -116,7 +116,7 @@ void TIM3_IRQHandler(void) {
 
 	static int buffer_position = 0;
 
-	if(channel_monitor_get_state() == BUSY || buffer_position == transmission_length) {
+	if(channel_monitor_get_state() == COLLISION || buffer_position == transmission_length) {
 	//if(channel_monitor_get_state() == BUSY || buffer_position == 8) {
 
 		tim3->DIER &= ~(0b01 << 1); // disable interrupts
@@ -127,14 +127,7 @@ void TIM3_IRQHandler(void) {
 
 	tim3->CCR1 += HALF_BIT_PERIOD;  // next interrupt fires last time + 500uS
 
-	// clear whatever's written
-	//gpioa->ODR &= ~(0b01 << 6);
-
-	// write the current half-bit to the register
-	//gpioa->ODR |= (transmissionBuffer[buffer_position++] | 1) << 6;
-	//gpioa->ODR |= (transmissionBuffer[buffer_position++]) << 6;
 	gpioa->BSRR = (1 << (6 + 16*(1 - transmissionBuffer[buffer_position++])));
-	//gpioa->ODR |= (testbuffer[buffer_position++]) << 6;
 }
 
 int transmit_halfbits(void) {
@@ -142,7 +135,9 @@ int transmit_halfbits(void) {
 		return -1;
 	}
 
+	while(channel_monitor_get_state() == BUSY) {};
+
 	tim3->CCR1 = (tim3->CNT); // trigger on current time + 500uS
-	tim3->DIER |= 0b01 << 1;   					// enable interrupts on channel 1
+	tim3->DIER |= 0b01 << 1;  // enable interrupts on channel 1
 	return 0;
 }

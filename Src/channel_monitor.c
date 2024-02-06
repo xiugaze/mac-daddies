@@ -136,10 +136,10 @@ void ld2_toggle(void) {
 
 void monitor_led_init() {
 	rcc->AHB1ENR |= GPIOA_EN;
-	gpioa->MODER &= ~(0b111111);
+	gpioa->MODER &= ~(0b1100001111);
     gpioa->MODER |= (0b01 << 0); // setting GPIOA_PIN_0 as output (Green LED)
     gpioa->MODER |= (0b01 << 2); // setting GPIOA_PIN_1 as output (Red LED)
-    gpioa->MODER |= (0b01 << 8); // setting GPIOA_PIN_2 as output (Yellow LED)
+    gpioa->MODER |= (0b01 << 8); // setting GPIOA_PIN_4 as output (Yellow LED)
 }
 
 void monitor_led_set(channel_state state) {
@@ -147,7 +147,7 @@ void monitor_led_set(channel_state state) {
     // GPIOA_PIN_0 is connected to the green LED,
     // GPIOA_PIN_1 is connected to the red LED,
     // GPIOA_PIN_2 is connected to the yellow LED
-	gpioa->ODR &= ~(0b010011);
+	gpioa->ODR &= ~(0b10011);
 	switch(state){
 	case IDLE:
 		gpioa->ODR |= 1 << 0;  // turn on Green LED
