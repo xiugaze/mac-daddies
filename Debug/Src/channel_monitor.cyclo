@@ -1,6 +1,0 @@
-../Src/channel_monitor.c:40:15:channel_monitor_get_state	1
-../Src/channel_monitor.c:49:6:channel_monitor_init	1
-../Src/channel_monitor.c:56:6:tim4_init	1
-../Src/channel_monitor.c:91:6:TIM4_IRQHandler	4
-../Src/channel_monitor.c:137:6:monitor_led_init	1
-../Src/channel_monitor.c:145:6:monitor_led_set	5

@@ -1,7 +1,0 @@
-"./Src/channel_monitor.o"
-"./Src/main.o"
-"./Src/syscalls.o"
-"./Src/sysmem.o"
-"./Src/transmitter.o"
-"./Src/uart_driver.o"
-"./Startup/startup_stm32f411retx.o"
