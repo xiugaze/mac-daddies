@@ -78,10 +78,11 @@ void tim2_init(void){
 	tim2->CR1 |= 1;					    // Start the timer
 }
 
+
 void TIM2_IRQHandler(void){
 	static uint8_t msg[510]; //Assuming maximum message length of 255 bytes
 	static int msg_index = 0;
-	 static uint16_t last_capture = 0;
+	static uint16_t last_capture = 0;
 	if(state == BUSY && tim2->SR &(1<<1)){//Check if the interrupt flag is set
 									      //and that we're busy
         //Read captured value
@@ -177,7 +178,6 @@ void TIM4_IRQHandler(void) {
 		tim4->DIER |= (1 << 2);
 		state = BUSY;
 
-
 	}
 
 
@@ -221,7 +221,6 @@ void monitor_led_set(channel_state state) {
 	case COLLISION:
 		gpioa->ODR |= 1 << 4;  // turn off Green/Yellow LED's
 		break;
-
 	}
 }
 

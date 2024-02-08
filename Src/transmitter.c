@@ -27,13 +27,13 @@ static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
 
 
 
-int get_transmission(void){
+int get_transmission(char userInput[]){
 
 	//check if 0 if it is then write 101010101010 a bunch of time set length to whatever and then do an early return
 
-	//Prompt user and grab input
-	printf("\nEnter a message: \n");
-	fgets(userInput, sizeof(userInput), stdin);
+//	//Prompt user and grab input
+//	printf("\nEnter a message: \n");
+//	fgets(userInput, sizeof(userInput), stdin);
 
 	//Getting rid of the newline char
 	int len = strlen(userInput);

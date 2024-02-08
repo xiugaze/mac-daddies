@@ -39,7 +39,27 @@ int main(void) {
 
     /* Loop forever */
 	while(1) {
-		printf("looping!\n");
-		get_transmission();
+        printf("Enter a command (type \\h for help)\n");
+        printf("m-d> ");
+        char buffer[300];
+        fgets(buffer, 299, stdin);
+        buffer[strlen(buffer) - 1] = '\0';
+
+        if(!strcmp(buffer, "\\h")) {
+            printf("TODO: make the help text\n");
+        } else if(!strcmp(buffer, "\\t")) {
+        	printf("\nEnter a message: \n");
+        	char message[300];
+        	fgets(message, 299, stdin);
+        	get_transmission(message);
+        } else if(!strcmp(buffer,"\null")) {
+            get_transmission("\\0");
+        } else if(!strcmp(buffer, "\\r")) {
+        	// receive
+        } else {
+            printf("Error: unknown command %s\n", buffer);
+        }
+
+
 	}
 }
