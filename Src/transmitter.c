@@ -26,7 +26,6 @@ static volatile GPIOX* const gpioa = (GPIOX*)GPIOA;
 static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
 
 
-int transmit_halfbits(void);
 
 int get_transmission(void){
 

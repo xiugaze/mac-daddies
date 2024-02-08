@@ -8,16 +8,23 @@
 // PB6 and PD12 on AF2
 
 #include <stdint.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "regs.h"
-#include "channel_monitor.h";
+#include "channel_monitor.h"
+#include "manchester_utils.h"
 
 #define CYCLES_1_1_MS 17600
 
 static volatile RCC *const rcc = (RCC*)RCC_BASE;
 static volatile GPIOX *const gpiob = (GPIOX*) GPIOB;
 static volatile GPIOX *const gpioa = (GPIOX*) GPIOA;
+static volatile TIMX_16 *tim2 = (TIMX_16*) TIM2;
 static volatile TIMX_16 *tim4 = (TIMX_16*) TIM4;
 static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
+
 
 /*
  * Here's what's gotta happen
@@ -50,6 +57,60 @@ void channel_monitor_init(void) {
 	monitor_led_init();
 	tim4_init();
 }
+
+//rx pin int on edge
+void tim2_init(void){
+	gpiob->MODER  &= ~(0b11 << 8*2);	// PB8 is in input mode (00)
+	gpiob->ODR    |=  (1 << 8);
+
+	rcc->APB1ENR |= TIM2_EN;
+
+	// configure TIM2_CH1 as TIC
+	tim2->CCMR1  &= ~(0b11 << 0);		// clear CC1S bits
+	tim2->CCMR1  |=  (0b01 << 0);		// tim2_ch1 is in input capture mode
+
+	tim2->CCER &= ~(1 << 1);      		// clear CC1P (active on rising edge)
+	tim2->CCER |= (1 << 0);        		// enable capture on CC1 pin
+
+	tim2->DIER |= 0b11 << 1;   			// enable TIC interrupts
+
+	nvic_iser[0] |= (1 <<28); 			// TIM2 global interrupt is in NVIC_ISER0[30]
+	tim2->CR1 |= 1;					// Start the timer
+}
+
+void TIM2_IRQHandler(void){
+	static uint8_t msg[510]; //Assuming maximum message length of 255 bytes
+	static int msg_index = 0;
+	 static uint16_t last_capture = 0;
+	if(state == BUSY && tim2->SR &(1<<1)){//Check if the interrupt flag is set
+									      //and that we're busy
+        //Read captured value
+        uint16_t capture_value = tim2->CCR1;
+        uint16_t time_elapsed = capture_value - last_capture;
+
+        // Reset the sampling clock using the middle of the bit period
+        tim2->CCR1 = last_capture + time_elapsed / 2;
+
+        //Store Manchester bit in the message buffer
+        msg[msg_index++] = capture_value;
+
+        // Check if we have received enough bits to decode a byte
+        if (msg_index >= 16) {
+            char decoded[255]; // Assuming maximum message length of 255 bytes
+            if (manchester_decode(msg, 16, decoded) == 0) {
+                // Print decoded ASCII text to console
+                printf("%s", decoded);
+            }
+            msg_index = 0; // Reset message index for the next byte
+        }
+
+        // Update the last capture value
+        last_capture = capture_value;
+
+		tim2->SR &= ~(1<<1);//Clear TIM2_CH1 interrupt flag
+	}
+}
+
 
 // channel 1: tic
 // channel 2: toc
@@ -108,13 +169,15 @@ void TIM4_IRQHandler(void) {
 	 * the status register. If there's a pending TIC and a pending TOC, we read
 	 * it up there clearing the interrupt
 	 */
-	if(((tim4->SR >> 1) &  0b01) & (tim4->DIER >> 1) & 1) {
-			// edge
-		line_state = (gpiob->IDR >> 6) & 0b01;
+	if(((tim4->SR >> 1) &  0b01) & (tim4->DIER >> 1) & 1) {//if from tic
+
+		line_state = (gpiob->IDR >> 6) & 0b01;//what line level is at on edge
 		//tim4->CNT = 0
-		tim4->CCR2 = tim4->CCR1 + CYCLES_1_1_MS;
+		tim4->CCR2 = tim4->CCR1 + CYCLES_1_1_MS;//rest to time where edge + 1.1
 		tim4->DIER |= (1 << 2);
 		state = BUSY;
+
+
 	}
 
 
