@@ -75,7 +75,7 @@ void tim2_init(void){
 	tim2->DIER |= 0b11 << 1;   			// enable TIC interrupts
 
 	nvic_iser[0] |= (1 <<28); 			// TIM2 global interrupt is in NVIC_ISER0[30]
-	tim2->CR1 |= 1;					// Start the timer
+	tim2->CR1 |= 1;					    // Start the timer
 }
 
 void TIM2_IRQHandler(void){
@@ -94,14 +94,14 @@ void TIM2_IRQHandler(void){
         //Store Manchester bit in the message buffer
         msg[msg_index++] = capture_value;
 
-        // Check if we have received enough bits to decode a byte
+        //Check if we have received enough bits to decode a byte
         if (msg_index >= 16) {
-            char decoded[255]; // Assuming maximum message length of 255 bytes
+            char decoded[255]; //Assuming maximum message length of 255 bytes
             if (manchester_decode(msg, 16, decoded) == 0) {
-                // Print decoded ASCII text to console
+                //Print decoded ASCII text to console
                 printf("%s", decoded);
             }
-            msg_index = 0; // Reset message index for the next byte
+            msg_index = 0; //Reset message index for the next byte
         }
 
         // Update the last capture value
