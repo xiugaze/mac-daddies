@@ -82,7 +82,7 @@ void recv_decode() {
 	char msg_buffer[200];
 	for(int i = 0; i < recv_buffer_size; i ++) {
 		printf("%c", recv_buffer[i] == 0 ? '0':'1');
-		if(i % 8 == 0) {
+		if((i+1) % 8 == 0) {
 			printf("\n");
 		}
 
@@ -178,9 +178,11 @@ void tim4_init(void) {
 
 	/* configure TIM4_CH2 as TOC (just free running with an interrupt */
 	tim4->CCMR1 &= ~(0b11 << 8);		// clear CC2S bits, tim4_ch2 is in output mode
-
-
 	tim4->CCR2 = CYCLES_1_1_MS;			// Timeout interrupt fires
+
+	/* configure TIM4_CH3 as TOC for recv sampling */
+	tim4->CCMR2 &= ~(0b11 << 0);       // clear CCS3 bits, timer4_ch3 is in output mode
+	tim4->CCR3 = CYCLES_1_1_MS; 		// Placeholder, will change before the interrupt is enabled
 
 //	CC1 channel configured as input:
 //	This bit determines if a capture of the counter value can actually be done into the input
@@ -199,17 +201,19 @@ void TIM4_IRQHandler(void) {
 	static uint8_t line_state;
 	recv_buffer[0] = 1;				// NOTE: hardcoding the first bit as 0,
 									// so first symbol is 1 (first recv symbol is falling edge)
-
 	int status = tim4->SR;
 
-	// TOC Interrupt needs service
+	// Timeout TOC Interrupt needs service
 	int timout_sv = ((status >> 2) & 0b01) & ((tim4->DIER >> 2) & 1); //
 	// TIC interrupt needs service
 	int edge_sv = ((status >> 1) & 0b01) & ((tim4->DIER >> 1) & 1);
+	// Recv Sample TOC Interrupt needs service
+	int oversample_sv = ((status >> 3) & 0b01) & ((tim4->DIER >> 3) & 1);
 
 	// Service the timeout
 	if(timout_sv) {
 		tim4->DIER &= ~(1 << 2); 	// disable TOC interrupts and
+		tim4->DIER &= ~(1 << 3);	// disable sampling interrupts
 
 		if(line_state) {
 			state = IDLE;
@@ -220,31 +224,38 @@ void TIM4_IRQHandler(void) {
 		if(recv_status()) {
 			recv_clear();
 			recv_post();
-			recv_buffer_size = recv_buffer_pos;
+			recv_buffer_size = recv_buffer_pos - (recv_buffer_pos % 16);
 			recv_buffer_pos = 1;
 		}
 	}
 
 	// Service the edge
 	if(edge_sv) {
-
+		uint16_t punch = tim4->CCR1;
 		line_state = (gpiob->IDR >> 6) & 0b01;		//what line level is at on edge
-		//tim4->CNT = 0
-		tim4->CCR2 = tim4->CCR1 + CYCLES_1_1_MS;	//rest to time where edge + 1.1
+		tim4->CCR2 = punch + CYCLES_1_1_MS;	//rest to time where edge + 1.1
 		tim4->DIER |= (1 << 2);
 		state = BUSY;
 
 		// if we're receiving;
 		if(recv_status()) {
+			tim4->CCR3 = punch + 9000;	// longer than a bit period + change
+			tim4->DIER |= (1 << 3); 	// enable ch3 interrupts (oversample)
+
 			recv_buffer[recv_buffer_pos] = line_state;
 			recv_buffer_pos++;
 		}
+	}
 
+	// sample while receiving
+	if(oversample_sv && recv_status()) {
+		line_state = (gpiob->IDR >> 6) & 0b01;
+		recv_buffer[recv_buffer_pos] = line_state;
+		recv_buffer_pos++;
 	}
 
 	monitor_led_set(state);
 	tim4->SR = 0;
-	//tim4->DIER |= 0b11 << 1;  // enable interrupts
 }
 
 void monitor_led_init() {
