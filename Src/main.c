@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include "channel_monitor.h"
 #include "uart_driver.h"
 #include "transmitter.h"
@@ -26,6 +27,7 @@
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
+
 
 int main(void) {
 	init_usart2(57600,F_CPU);
@@ -55,7 +57,9 @@ int main(void) {
         } else if(!strcmp(buffer,"\null")) {
             get_transmission("\\0");
         } else if(!strcmp(buffer, "\\r")) {
-        	// receive
+        	recv_set();
+        	recv_wait();				// takes the semaphore: interrupt owns it
+        	recv_decode();				// this is the function that blocks
         } else {
             printf("Error: unknown command %s\n", buffer);
         }

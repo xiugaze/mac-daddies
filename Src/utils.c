@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "utils.h"
 
 int pair_to_bit(uint8_t pair[]) {
     if(pair[0] == 0 && pair[1] == 1) {
@@ -52,4 +53,14 @@ int manchester_decode(uint8_t msg[], int len, char decoded[]) {
     return 0;
 }
 
+void raise_error(error e) {
+	switch(e) {
+	case TRANSMISSION_ON_COLLISION:
+		printf("Error: attempted transmission on collision line\n");
+		break;
+	case TRANSMISSION_ON_BUSY:
+		printf("Warning: attempting transmission on busy line, waiting...\n");
+		break;
+	}
+}
 

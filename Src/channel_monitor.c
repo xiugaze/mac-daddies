@@ -12,9 +12,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <utils.h>
 #include "regs.h"
 #include "channel_monitor.h"
-#include "manchester_utils.h"
 
 #define CYCLES_1_1_MS 17600
 
@@ -46,6 +46,50 @@ static channel_state state = IDLE;
 
 channel_state channel_monitor_get_state(void) {
 	return state;
+}
+
+static int receiving = 0;
+static int recv_sem = 1;
+static int recv_buffer_pos = 1;
+static int recv_buffer_size = 0;
+static uint8_t recv_buffer[1024];
+
+int recv_set(void) {
+	receiving = 1;
+	return receiving;
+}
+
+int recv_clear(void) {
+	receiving = 0;
+	return receiving;
+}
+
+int recv_status(void) {
+	return receiving;
+}
+
+void recv_wait() {
+	while(recv_sem != 1) {};
+	recv_sem = 0;
+}
+
+void recv_post() {
+	recv_sem = 1;
+}
+
+void recv_decode() {
+	recv_wait();
+	char msg_buffer[200];
+	for(int i = 0; i < recv_buffer_size; i ++) {
+		printf("%c", recv_buffer[i] == 0 ? '0':'1');
+		if(i % 8 == 0) {
+			printf("\n");
+		}
+
+	}
+	manchester_decode(recv_buffer, recv_buffer_size, msg_buffer);
+	printf("received: %s\n", msg_buffer);
+	recv_post();
 }
 
 /*
@@ -152,50 +196,56 @@ void tim4_init(void) {
 
 void TIM4_IRQHandler(void) {
 	state = IDLE;
-	static int line_state;
+	static uint8_t line_state;
+	recv_buffer[0] = 1;				// NOTE: hardcoding the first bit as 0,
+									// so first symbol is 1 (first recv symbol is falling edge)
 
-	if(((tim4->SR >> 2) & 0b01) & (tim4->DIER >> 2) & 1) {
-		tim4->DIER &= ~(1 << 2);
+	int status = tim4->SR;
+
+	// TOC Interrupt needs service
+	int timout_sv = ((status >> 2) & 0b01) & ((tim4->DIER >> 2) & 1); //
+	// TIC interrupt needs service
+	int edge_sv = ((status >> 1) & 0b01) & ((tim4->DIER >> 1) & 1);
+
+	// Service the timeout
+	if(timout_sv) {
+		tim4->DIER &= ~(1 << 2); 	// disable TOC interrupts and
 
 		if(line_state) {
 			state = IDLE;
 		} else {
 			state = COLLISION;
 		}
-		// disable
+
+		if(recv_status()) {
+			recv_clear();
+			recv_post();
+			recv_buffer_size = recv_buffer_pos;
+			recv_buffer_pos = 1;
+		}
 	}
 
-	/*
-	 * You were right the first time: the first read upstairs will clear
-	 * the status register. If there's a pending TIC and a pending TOC, we read
-	 * it up there clearing the interrupt
-	 */
-	if(((tim4->SR >> 1) &  0b01) & (tim4->DIER >> 1) & 1) {//if from tic
+	// Service the edge
+	if(edge_sv) {
 
-		line_state = (gpiob->IDR >> 6) & 0b01;//what line level is at on edge
+		line_state = (gpiob->IDR >> 6) & 0b01;		//what line level is at on edge
 		//tim4->CNT = 0
-		tim4->CCR2 = tim4->CCR1 + CYCLES_1_1_MS;//rest to time where edge + 1.1
+		tim4->CCR2 = tim4->CCR1 + CYCLES_1_1_MS;	//rest to time where edge + 1.1
 		tim4->DIER |= (1 << 2);
 		state = BUSY;
 
-	}
+		// if we're receiving;
+		if(recv_status()) {
+			recv_buffer[recv_buffer_pos] = line_state;
+			recv_buffer_pos++;
+		}
 
+	}
 
 	monitor_led_set(state);
 	tim4->SR = 0;
 	//tim4->DIER |= 0b11 << 1;  // enable interrupts
 }
-
-/*
-void ld2_init() {
-	rcc->AHB1ENR |= GPIOA_EN;
-	gpioa->MODER |= (0b01 << 5 * 2);
-}
-
-void ld2_toggle(void) {
-	gpioa->ODR ^= (1<<5);	// toggle pin 5
-}
-*/
 
 void monitor_led_init() {
 	rcc->AHB1ENR |= GPIOA_EN;

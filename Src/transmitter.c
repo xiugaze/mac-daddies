@@ -6,6 +6,7 @@
 #include "regs.h"
 #include "transmitter.h"
 #include "channel_monitor.h"
+#include "utils.h"
 
 #define BITS_PER_CHAR 8
 #define BIT_RATE 1000
@@ -14,26 +15,19 @@
 
 
 char userInput[100];
-//Assuming a maximum of 100 characters, each represented by 2 half-bits
-// 01110100
 uint16_t transmissionBuffer[1024];
 static int transmission_length = -1;
-//uint16_t testbuffer[] = {0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0};
 
 static volatile TIMX_16* const tim3 = (TIMX_16*)TIM3;
 static volatile RCC* const rcc = (RCC*) RCC_BASE;
 static volatile GPIOX* const gpioa = (GPIOX*)GPIOA;
 static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
 
+int transmit_halfbits(void);
 
 
 int get_transmission(char userInput[]){
 
-	//check if 0 if it is then write 101010101010 a bunch of time set length to whatever and then do an early return
-
-//	//Prompt user and grab input
-//	printf("\nEnter a message: \n");
-//	fgets(userInput, sizeof(userInput), stdin);
 
 	//Getting rid of the newline char
 	int len = strlen(userInput);
@@ -70,7 +64,6 @@ int get_transmission(char userInput[]){
 		}
 	}
 
-	//transmit_halfbits(transmissionBuffer, strlen(userInput) * BITS_PER_CHAR);
 
 	/*
 	 * size of the transmission buffer is the length of the input times the
@@ -115,13 +108,17 @@ void TIM3_IRQHandler(void) {
 
 	static int buffer_position = 0;
 
-	if(channel_monitor_get_state() == COLLISION || buffer_position == transmission_length) {
+	channel_state state = channel_monitor_get_state();
+	if(state == COLLISION || buffer_position == transmission_length) {
 	//if(channel_monitor_get_state() == BUSY || buffer_position == 8) {
 
 		tim3->DIER &= ~(0b01 << 1); // disable interrupts
 		transmission_length = -1;  	// don't transmit
 		buffer_position = 0;	   	// reset the buffer position
 		gpioa->ODR |= 1 << 6;		// let the line go high
+		if(state == COLLISION) {
+			raise_error(TRANSMISSION_ON_COLLISION);
+		}
 	}
 
 	tim3->CCR1 += HALF_BIT_PERIOD;  // next interrupt fires last time + 500uS
@@ -134,7 +131,11 @@ int transmit_halfbits(void) {
 		return -1;
 	}
 
-	while(channel_monitor_get_state() == BUSY) {};
+	if(channel_monitor_get_state() == BUSY) {
+		raise_error(TRANSMISSION_ON_BUSY);
+		//while(channel_monitor_get_state() == BUSY) {};
+		//printf("Line clear, transmitting\n");
+	}
 
 	tim3->CCR1 = (tim3->CNT); // trigger on current time + 500uS
 	tim3->DIER |= 0b01 << 1;  // enable interrupts on channel 1
