@@ -37,12 +37,11 @@ int main(void) {
 	// the UART get interrupted ?
 	channel_monitor_init();
 	transmit_init();
-
-
+	printf("Enter a command (type \\h for help)\n");
     /* Loop forever */
 	while(1) {
-        printf("Enter a command (type \\h for help)\n");
-        printf("m-d> ");
+
+        printf("mcdd> ");
         char buffer[300];
         fgets(buffer, 299, stdin);
         buffer[strlen(buffer) - 1] = '\0';
@@ -57,6 +56,7 @@ int main(void) {
         } else if(!strcmp(buffer,"\null")) {
             get_transmission("\\0");
         } else if(!strcmp(buffer, "\\r")) {
+        	printf("Receiving:\n");
         	recv_set();
         	recv_wait();				// takes the semaphore: interrupt owns it
         	recv_decode();				// this is the function that blocks

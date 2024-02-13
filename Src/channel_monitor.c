@@ -80,13 +80,13 @@ void recv_post() {
 void recv_decode() {
 	recv_wait();
 	char msg_buffer[200];
-	for(int i = 0; i < recv_buffer_size; i ++) {
-		printf("%c", recv_buffer[i] == 0 ? '0':'1');
-		if((i+1) % 8 == 0) {
-			printf("\n");
-		}
-
-	}
+//	for(int i = 0; i < recv_buffer_size; i ++) {
+//		printf("%c", recv_buffer[i] == 0 ? '0':'1');
+//		if((i+1) % 8 == 0) {
+//			printf("\n");
+//		}
+//
+//	}
 	manchester_decode(recv_buffer, recv_buffer_size, msg_buffer);
 	printf("received: %s\n", msg_buffer);
 	recv_post();
