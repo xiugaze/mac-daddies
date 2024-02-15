@@ -7,6 +7,10 @@
 
 // PB6 and PD12 on AF2
 
+
+//message is over when idle but packet is the length field +preamble +dest+ add+cr +..
+
+
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -48,11 +52,74 @@ channel_state channel_monitor_get_state(void) {
 	return state;
 }
 
+
+//function that serializes it (buffer of 1s and 0s, state before transmission)
+void serializePacket(const Packet *packet, uint8_t *buffer, size_t *buffer_size) {
+    //Calculate total packet size
+    size_t total_size = sizeof(Header) + packet->header.length + sizeof(packet->trailer_crc);
+
+    //Serialize header
+    memcpy(buffer, &(packet->header), sizeof(Header));
+    buffer += sizeof(Header);
+
+    //Serialize message
+    memcpy(buffer, packet->message, packet->header.length);
+    buffer += packet->header.length;
+
+    //Serialize trailer CRC
+    memcpy(buffer, &(packet->trailer_crc), sizeof(packet->trailer_crc));
+
+    //Update buffer size (Each byte is 8 bits)
+    *buffer_size = total_size * 8;
+}
+
+
+
+//function that deserailizes it and returns a struct
+		//check whether the address is correct if it isn't break
+Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size) {
+    //Check if buffer size is sufficient for header and trailer
+    if (buffer_size < (sizeof(Header) * 8 + sizeof(uint8_t) * 8)) {
+        return NULL; // Not enough data for header and trailer
+    }
+
+    //Allocate memory for packet
+    Packet *packet = (Packet*)malloc(sizeof(Packet));
+    if (packet == NULL) {
+        return NULL; //Memory allocation failed
+    }
+
+    //Deserialize header
+    memcpy(&(packet->header), buffer, sizeof(Header));
+    buffer += sizeof(Header) * 8;
+
+    //Check if source and destination addresses are within the acceptable range
+    if ((packet->header.source_address < 0x14 || packet->header.source_address > 0x17) ||
+        (packet->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {
+        free(packet); //Free memory before returning NULL
+        return NULL; //Invalid source or destination address
+    }
+
+    //Deserialize message
+    packet->header.length = buffer_size - (sizeof(Header) * 8 + sizeof(uint8_t) * 8);
+    memcpy(packet->message, buffer, packet->header.length);
+    buffer += packet->header.length;
+
+    //Deserialize trailer CRC (Not really necessary? since CRC isnt required)
+    memcpy(&(packet->trailer_crc), buffer, sizeof(uint8_t) * 8);
+
+
+    return packet;
+}
+
+
+
 static int receiving = 0;
 static int recv_sem = 1;
 static int recv_buffer_pos = 1;
 static int recv_buffer_size = 0;
 static uint8_t recv_buffer[1024];
+
 
 int recv_set(void) {
 	receiving = 1;
@@ -225,7 +292,7 @@ void TIM4_IRQHandler(void) {
 			recv_clear();
 			recv_post();
 			recv_buffer_size = recv_buffer_pos - (recv_buffer_pos % 16);
-			recv_buffer_pos = 1;
+			recv_buffer_pos = 1; //possibly move out of loop
 		}
 	}
 
