@@ -77,11 +77,17 @@ void serializePacket(const Packet *packet, uint8_t *buffer, size_t *buffer_size)
 
 //function that deserailizes it and returns a struct
 		//check whether the address is correct if it isn't break
-Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size) {
+Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
+	//Expected size for header and trailer
+	size_t expected_size = sizeof(Header) + sizeof(uint8_t);
     //Check if buffer size is sufficient for header and trailer
-    if (buffer_size < (sizeof(Header) * 8 + sizeof(uint8_t) * 8)) {
-        return NULL; // Not enough data for header and trailer
+    if (buffer_size_bits < expected_size) {
+    	printf("Error: Insufficient buffer size for header and trailer. Expected: %lu, Actual: %lu \n", expected_size, buffer_size_bits);
+        return NULL; //Not enough data for header and trailer
     }
+
+    //Adjust buffer size to bytes
+    size_t buffer_size_bytes = (buffer_size_bits + 7) / 8;
 
     //Allocate memory for packet
     Packet *packet = (Packet*)malloc(sizeof(Packet));
@@ -90,8 +96,20 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size) {
     }
 
     //Deserialize header
-    memcpy(&(packet->header), buffer, sizeof(Header));
-    buffer += sizeof(Header) * 8;
+	memcpy(&(packet->header), buffer, sizeof(Header));
+	buffer += sizeof(Header);
+	memcpy(packet->message, buffer, packet->header.length);
+	buffer += packet->header.length;
+	memcpy(&(packet->trailer_crc), buffer, sizeof(uint8_t));
+
+
+    printf("Deserialized Header: \n");
+    printf("Preamble: 0x%02X\n", packet->header.preamble);
+    printf("Source Address: 0x%02X\n", packet->header.source_address);
+    printf("Destination Address: 0x%02X\n", packet->header.destination_address);
+    printf("Length: 0x%02X\n", packet->header.length);
+    printf("CRC Flag: 0x%02X\n", packet->header.crc_flag);
+
 
     //Check if source and destination addresses are within the acceptable range
     if ((packet->header.source_address < 0x14 || packet->header.source_address > 0x17) ||
@@ -101,7 +119,7 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size) {
     }
 
     //Deserialize message
-    packet->header.length = buffer_size - (sizeof(Header) * 8 + sizeof(uint8_t) * 8);
+    packet->header.length = buffer_size_bytes - (sizeof(Header) * 8 + sizeof(uint8_t) * 8);
     memcpy(packet->message, buffer, packet->header.length);
     buffer += packet->header.length;
 

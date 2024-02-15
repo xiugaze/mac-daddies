@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "channel_monitor.h"
 #include "uart_driver.h"
 #include "transmitter.h"
@@ -40,6 +41,34 @@ int main(void) {
 	printf("Enter a command (type \\h for help)\n");
     /* Loop forever */
 	while(1) {
+		// Example serialized data (binary)
+		// Example test buffer (binary)
+		uint8_t buffer1[] = {
+			// Header
+			0b01010101, //Preamble
+			0b00010100, //Source address: 0x14
+			0b00010101, //Destination address: 0x15
+			0b00000001, //Length
+			0b00000001, //CRC flag
+			//Message (in this case, it's empty since the length is 1)
+			//Trailer CRC
+			0b11000000  //CRC8 FCS
+		};
+		size_t buffer_size = sizeof(buffer1); // Buffer size in bytes
+
+		//Deserialize the buffer
+		Packet *packet = deserializePacket(buffer1, buffer_size);
+
+		 //Check if deserialization was successful
+		if (packet != NULL) {
+			printf("Deserialization successful!\n");
+			printf("Source Address: 0x%02X\n", packet->header.source_address);
+			printf("Destination Address: 0x%02X\n", packet->header.destination_address);
+			// Free allocated memory for packet
+			free(packet);
+		} else {
+			printf("Deserialization failed! Invalid source or destination address.\n");
+		}
 
         printf("mcdd> ");
         char buffer[300];
