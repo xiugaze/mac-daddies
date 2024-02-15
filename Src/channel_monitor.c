@@ -55,22 +55,22 @@ channel_state channel_monitor_get_state(void) {
 
 //function that serializes it (buffer of 1s and 0s, state before transmission)
 void serializePacket(const Packet *packet, uint8_t *buffer, size_t *buffer_size) {
-    //Calculate total packet size
-    size_t total_size = sizeof(Header) + packet->header.length + sizeof(packet->trailer_crc);
+    //Calculate total packet size // dont needs this??
+    //size_t total_size = sizeof(Header) + packet->header.length + sizeof(packet->trailer_crc);
 
     //Serialize header
     memcpy(buffer, &(packet->header), sizeof(Header));
     buffer += sizeof(Header);
 
     //Serialize message
-    memcpy(buffer, packet->message, packet->header.length);
-    buffer += packet->header.length;
+    char* msg = malloc(sizeof(char)*packet->header.length);
+    memcpy(&buffer[5],msg,packet->header.length);
 
     //Serialize trailer CRC
-    memcpy(buffer, &(packet->trailer_crc), sizeof(packet->trailer_crc));
+    memcpy(&buffer[4+packet->header.length],&(packet->trailer_crc),sizeof(uint8_t));
 
     //Update buffer size (Each byte is 8 bits)
-    *buffer_size = total_size * 8;
+    //*buffer_size = total_size * 8; //dont need this???
 }
 
 
@@ -82,12 +82,12 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
 	size_t expected_size = sizeof(Header) + sizeof(uint8_t);
     //Check if buffer size is sufficient for header and trailer
     if (buffer_size_bits < expected_size) {
-    	printf("Error: Insufficient buffer size for header and trailer. Expected: %lu, Actual: %lu \n", expected_size, buffer_size_bits);
+    	printf("Error: Insufficient buffer size for header and trailer. Expected: %u, Actual: %u \n", expected_size, buffer_size_bits);
         return NULL; //Not enough data for header and trailer
     }
 
     //Adjust buffer size to bytes
-    size_t buffer_size_bytes = (buffer_size_bits + 7) / 8;
+  //  size_t buffer_size_bytes = (buffer_size_bits + 7) / 8;
 
     //Allocate memory for packet
     Packet *packet = (Packet*)malloc(sizeof(Packet));
@@ -97,10 +97,9 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
 
     //Deserialize header
 	memcpy(&(packet->header), buffer, sizeof(Header));
-	buffer += sizeof(Header);
-	memcpy(packet->message, buffer, packet->header.length);
-	buffer += packet->header.length;
-	memcpy(&(packet->trailer_crc), buffer, sizeof(uint8_t));
+    char* msg = malloc(sizeof(char)*packet->header.length);
+    memcpy(msg,&buffer[5],packet->header.length);
+	memcpy(&(packet->trailer_crc), &buffer[4 + packet->header.length], sizeof(uint8_t));
 
 
     printf("Deserialized Header: \n");
@@ -110,24 +109,20 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
     printf("Length: 0x%02X\n", packet->header.length);
     printf("CRC Flag: 0x%02X\n", packet->header.crc_flag);
 
-
     //Check if source and destination addresses are within the acceptable range
     if ((packet->header.source_address < 0x14 || packet->header.source_address > 0x17) ||
         (packet->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {
-        free(packet); //Free memory before returning NULL
+        free_packet(packet); //Free memory before returning NULL
         return NULL; //Invalid source or destination address
     }
 
-    //Deserialize message
-    packet->header.length = buffer_size_bytes - (sizeof(Header) * 8 + sizeof(uint8_t) * 8);
-    memcpy(packet->message, buffer, packet->header.length);
-    buffer += packet->header.length;
-
-    //Deserialize trailer CRC (Not really necessary? since CRC isnt required)
-    memcpy(&(packet->trailer_crc), buffer, sizeof(uint8_t) * 8);
-
 
     return packet;
+}
+//Free message and packet
+void free_packet(Packet * packet){
+	free(packet->message);
+	free(packet);
 }
 
 

@@ -24,7 +24,7 @@ typedef struct {
 
 typedef struct {
     Header header;
-    uint8_t message[MAX_MESSAGE_LENGTH];
+    uint8_t *message;
     uint8_t trailer_crc;
 } Packet;
 
@@ -39,7 +39,7 @@ channel_state channel_monitor_get_state(void);
 
 void serializePacket(const Packet *packet, uint8_t *buffer, size_t *buffer_size);
 Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size);
-
+void free_packet(Packet * packet);
 
 int recv_set(void);
 int recv_clear(void);

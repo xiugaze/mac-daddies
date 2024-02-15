@@ -65,7 +65,7 @@ int main(void) {
 			printf("Source Address: 0x%02X\n", packet->header.source_address);
 			printf("Destination Address: 0x%02X\n", packet->header.destination_address);
 			// Free allocated memory for packet
-			free(packet);
+			free_packet(packet);
 		} else {
 			printf("Deserialization failed! Invalid source or destination address.\n");
 		}
