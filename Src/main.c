@@ -29,6 +29,8 @@
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
+uint8_t buffer1[1024];
+int buffer_size = 1024;
 
 int main(void) {
 	init_usart2(57600,F_CPU);
@@ -42,19 +44,16 @@ int main(void) {
     /* Loop forever */
 	while(1) {
 		// Example serialized data (binary)
-		// Example test buffer (binary)
-		uint8_t buffer1[] = {
-			// Header
-			0b01010101, //Preamble
-			0b00010100, //Source address: 0x14
-			0b00010101, //Destination address: 0x15
-			0b00000001, //Length
-			0b00000001, //CRC flag
-			//Message (in this case, it's empty since the length is 1)
-			//Trailer CRC
-			0b11000000  //CRC8 FCS
-		};
-		size_t buffer_size = sizeof(buffer1); // Buffer size in bytes
+		Packet* to_serialize = malloc(sizeof(Packet));
+		to_serialize->header.preamble = 0xAA;
+		to_serialize->header.source_address = 0;
+		to_serialize->header.destination_address = 0x15;
+		to_serialize->header.length = 5;
+		to_serialize->header.crc_flag = 1;
+		to_serialize->message = malloc(sizeof(char) * 5);
+		strcpy(to_serialize->message, "test\n");
+		to_serialize->trailer_crc = 1;
+		serializePacket(to_serialize, buffer1, buffer_size);
 
 		//Deserialize the buffer
 		Packet *packet = deserializePacket(buffer1, buffer_size);
@@ -64,6 +63,7 @@ int main(void) {
 			printf("Deserialization successful!\n");
 			printf("Source Address: 0x%02X\n", packet->header.source_address);
 			printf("Destination Address: 0x%02X\n", packet->header.destination_address);
+			printf("Message: %s", packet->message);
 			// Free allocated memory for packet
 			free_packet(packet);
 		} else {

@@ -54,20 +54,17 @@ channel_state channel_monitor_get_state(void) {
 
 
 //function that serializes it (buffer of 1s and 0s, state before transmission)
-void serializePacket(const Packet *packet, uint8_t *buffer, size_t *buffer_size) {
+void serializePacket(Packet *packet, uint8_t *buffer, int buffer_size) {
     //Calculate total packet size // dont needs this??
     //size_t total_size = sizeof(Header) + packet->header.length + sizeof(packet->trailer_crc);
 
     //Serialize header
     memcpy(buffer, &(packet->header), sizeof(Header));
-    buffer += sizeof(Header);
-
     //Serialize message
-    char* msg = malloc(sizeof(char)*packet->header.length);
-    memcpy(&buffer[5],msg,packet->header.length);
-
+    memcpy(&buffer[5], packet->message, packet->header.length);
     //Serialize trailer CRC
-    memcpy(&buffer[4+packet->header.length],&(packet->trailer_crc),sizeof(uint8_t));
+    memcpy(&buffer[5+packet->header.length], &(packet->trailer_crc),sizeof(uint8_t));
+    free_packet(packet);
 
     //Update buffer size (Each byte is 8 bits)
     //*buffer_size = total_size * 8; //dont need this???
@@ -110,8 +107,7 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
     printf("CRC Flag: 0x%02X\n", packet->header.crc_flag);
 
     //Check if source and destination addresses are within the acceptable range
-    if ((packet->header.source_address < 0x14 || packet->header.source_address > 0x17) ||
-        (packet->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {
+    if ((packet->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {
         free_packet(packet); //Free memory before returning NULL
         return NULL; //Invalid source or destination address
     }

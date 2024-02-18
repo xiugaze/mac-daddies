@@ -24,7 +24,7 @@ typedef struct {
 
 typedef struct {
     Header header;
-    uint8_t *message;
+    char* message;
     uint8_t trailer_crc;
 } Packet;
 
@@ -37,7 +37,7 @@ typedef enum {
 void channel_monitor_init();
 channel_state channel_monitor_get_state(void);
 
-void serializePacket(const Packet *packet, uint8_t *buffer, size_t *buffer_size);
+void serializePacket(Packet *packet, uint8_t *buffer, int buffer_size);
 Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size);
 void free_packet(Packet * packet);
 
