@@ -31,14 +31,6 @@ static volatile TIMX_16 *tim4 = (TIMX_16*) TIM4;
 static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
 
 
-/*
- * Here's what's gotta happen
- * - TIM4 is gonna fire off every single edge. When an edge happens,
- *   we're going to stop, restart, and start TIM6.
- * - TIM6 will get started by TIM4_IRQ.
- *
- */
-
 void ld2_init();
 void ld2_toggle();
 void channel_monitor_init();
@@ -87,13 +79,6 @@ void recv_post() {
 void recv_decode() {
 	recv_wait();
 	Packet* received = manchester_decode(recv_buffer, recv_buffer_size);
-//	for(int i = 0; i < recv_buffer_size; i ++) {
-//		printf("%c", recv_buffer[i] == 0 ? '0':'1');
-//		if((i+1) % 8 == 0) {
-//			printf("\n");
-//		}
-//
-//	}
 	printf("received: %s from %x\n", received->message, received->header.source_address);
 	recv_post();
 }
@@ -108,63 +93,9 @@ void channel_monitor_init(void) {
 	tim4_init();
 }
 
-//rx pin int on edge
-//void tim2_init(void){
-//	gpiob->MODER  &= ~(0b11 << 8*2);	// PB8 is in input mode (00)
-//	gpiob->ODR    |=  (1 << 8);
-//
-//	rcc->APB1ENR |= TIM2_EN;
-//
-//	// configure TIM2_CH1 as TIC
-//	tim2->CCMR1  &= ~(0b11 << 0);		// clear CC1S bits
-//	tim2->CCMR1  |=  (0b01 << 0);		// tim2_ch1 is in input capture mode
-//
-//	tim2->CCER &= ~(1 << 1);      		// clear CC1P (active on rising edge)
-//	tim2->CCER |= (1 << 0);        		// enable capture on CC1 pin
-//
-//	tim2->DIER |= 0b11 << 1;   			// enable TIC interrupts
-//
-//	nvic_iser[0] |= (1 <<28); 			// TIM2 global interrupt is in NVIC_ISER0[30]
-//	tim2->CR1 |= 1;					    // Start the timer
-//}
-//
-
-//void TIM2_IRQHandler(void){
-//	static uint8_t msg[510]; //Assuming maximum message length of 255 bytes
-//	static int msg_index = 0;
-//	static uint16_t last_capture = 0;
-//	if(state == BUSY && tim2->SR &(1<<1)){//Check if the interrupt flag is set
-//									      //and that we're busy
-//        //Read captured value
-//        uint16_t capture_value = tim2->CCR1;
-//        uint16_t time_elapsed = capture_value - last_capture;
-//
-//        // Reset the sampling clock using the middle of the bit period
-//        tim2->CCR1 = last_capture + time_elapsed / 2;
-//
-//        //Store Manchester bit in the message buffer
-//        msg[msg_index++] = capture_value;
-//
-//        //Check if we have received enough bits to decode a byte
-//        if (msg_index >= 16) {
-//            char decoded[255]; //Assuming maximum message length of 255 bytes
-//            if (manchester_decode(msg, 16, decoded) == 0) {
-//                //Print decoded ASCII text to console
-//                printf("%s", decoded);
-//            }
-//            msg_index = 0; //Reset message index for the next byte
-//        }
-//
-//        // Update the last capture value
-//        last_capture = capture_value;
-//
-//		tim2->SR &= ~(1<<1);//Clear TIM2_CH1 interrupt flag
-//	}
-//}
-//
-
 // channel 1: tic
 // channel 2: toc
+// channel 3: recv oversample
 void tim4_init(void) {
 
 	/* PB6 is the input pin for TIC on TIM4_CH1 */
@@ -281,19 +212,16 @@ void monitor_led_init() {
 
 void monitor_led_set(channel_state state) {
 
-    // GPIOA_PIN_0 is connected to the green LED,
-    // GPIOA_PIN_1 is connected to the red LED,
-    // GPIOA_PIN_2 is connected to the yellow LED
 	gpioa->ODR &= ~(0b10011);
 	switch(state){
 	case IDLE:
-		gpioa->ODR |= 1 << 0;  // turn on Green LED
+		gpioa->ODR |= 1 << 0;
 		break;
 	case BUSY:
-	    gpioa->ODR |= 1 << 1;  // turn off Green/Red LED's
+	    gpioa->ODR |= 1 << 1;
 	    break;
 	case COLLISION:
-		gpioa->ODR |= 1 << 4;  // turn off Green/Yellow LED's
+		gpioa->ODR |= 1 << 4;
 		break;
 	}
 }

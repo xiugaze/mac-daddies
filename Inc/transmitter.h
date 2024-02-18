@@ -3,7 +3,7 @@
 #define TRANSMITTER_H_
 
 
-int transmit(char c[]);
+int transmit(char c[], uint8_t addr);
 void transmit_init(void);
 
 #endif

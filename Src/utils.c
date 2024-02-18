@@ -26,7 +26,7 @@ int pair_to_bit(uint8_t pair[]) {
 Packet* manchester_decode(uint8_t msg[], int len) {
     // message length must be divisible by 16 baud == 8 bits == 1 byte
     if(len % 16 != 0) {
-        return -1;
+        return NULL;
     }
 
     uint8_t decoded[1024];
@@ -40,7 +40,7 @@ Packet* manchester_decode(uint8_t msg[], int len) {
         int bit = pair_to_bit(pair);
 
         if(bit < 0) {
-            return -1;
+            return NULL;
         }
 
         current_char |= (bit << byte_pos);
@@ -61,15 +61,11 @@ Packet* manchester_decode(uint8_t msg[], int len) {
     return 0;
 }
 
+static int error_pos = 0;
+static error error_queue[200];
 void raise_error(error e) {
-	switch(e) {
-	case TRANSMISSION_ON_COLLISION:
-		printf("Error: attempted transmission on collision line\n");
-		break;
-	case TRANSMISSION_ON_BUSY:
-		printf("Warning: attempting transmission on busy line, waiting...\n");
-		break;
-	}
+	error_queue[error_pos] = e;
+	error_pos++;
 }
 
 //function that serializes it (buffer of 1s and 0s, state before transmission)
@@ -155,13 +151,6 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
     memcpy(msg,&buffer[5],packet->header.length);
 	memcpy(&(packet->trailer_crc), &buffer[4 + packet->header.length], sizeof(uint8_t));
 
-
-//    printf("Deserialized Header: \n");
-//    printf("Preamble: 0x%02X\n", packet->header.preamble);
-//    printf("Source Address: 0x%02X\n", packet->header.source_address);
-//    printf("Destination Address: 0x%02X\n", packet->header.destination_address);
-//    printf("Length: 0x%02X\n", packet->header.length);
-//    printf("CRC Flag: 0x%02X\n", packet->header.crc_flag);
 
     //Check if source and destination addresses are within the acceptable range
     if ((packet 	->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {

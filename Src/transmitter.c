@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include "regs.h"
 #include "transmitter.h"
 #include "channel_monitor.h"
@@ -27,7 +28,7 @@ static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
 int transmit_halfbits(void);
 
 
-int transmit(char userInput[]){
+int transmit(char userInput[], uint8_t dst_addr){
 
 
 	//Getting rid of the newline char
@@ -37,7 +38,7 @@ int transmit(char userInput[]){
 	}
 
 	// TODO: variable destination
-	Packet* to_send = new_packet(userInput, 0x15);
+	Packet* to_send = new_packet(userInput, dst_addr);
 	uint8_t packet_buffer[1024];
 	int length_bytes = serializePacket(to_send, packet_buffer, 1024);
 
@@ -55,11 +56,6 @@ int transmit(char userInput[]){
 		}
 	}
 
-
-	/*
-	 * size of the transmission buffer is the length of the input times the
-	 * number of bits in a byte times the number of bits in one baud (Manchester)
-	 */
 	transmission_length = length_bytes * 8 * 2;
 	return transmit_halfbits();
 
@@ -67,25 +63,26 @@ int transmit(char userInput[]){
 
 
 void transmit_init() {
-	rcc->AHB1ENR |= (GPIOA_EN | GPIOC_EN);			// enable GPIOA
 
-	// NOTE: do not think this is necessary
-//	gpioa->AFRL  |= (0b0010 << 6 * 4); 	// PA6 is AF02 (TIM3_CH1)
-//	gpioa->MODER |= (0b10 << 6*2);		// PA6 is in AF mode
+	rcc->AHB1ENR |= (GPIOA_EN | GPIOC_EN); // enable GPIOA
+
 	gpioa->MODER  &= ~(0b11 << 6*2);
 	gpioa->MODER  |=  (0b01 << 6*2);	// PA6 is in output mode
 	gpioa->OTYPER  |= (1 << 6);
 	gpioa->ODR    |=  (1 << 6);
 
-
 	gpioc->MODER  &= ~(0b11 << 0*2);
 	gpioc->MODER  |=  (0b01 << 0*2);
-
 
 	rcc->APB1ENR |= TIM3_EN;			// enable TIM3
 
 	tim3->CCMR1 &= ~(0b11 << 0);		// clear CC1S bits, tim3_ch1 is in output mode
 	//tim3->CCR1 = HALF_BIT_PERIOD;		// interrupt fires on HALF_BIT_PERIOD
+
+	// Configure TOC for retransmit
+	tim3->CCMR1 &= ~(0b11 << 8);		// clear CC2S bits, tim4_ch2 is in output mode
+	tim3->CCR2 = 0;						// Placeholder
+
 
 	nvic_iser[0] |= (1 << 29);			// TIM3 global interrupt is vector 29
 	tim3->CR1 |= 0b01;					// Start the timer
@@ -96,33 +93,59 @@ void transmit_init() {
  * and write the value to the IDR.
  */
 void TIM3_IRQHandler(void) {
-	gpioc->BSRR   |=  (1 << 0);
-	tim3->SR=0;
-
+	gpioc->BSRR   |=  (1 << 0);		// in the interrupt
+	uint32_t status = tim3->SR;
+	tim3->SR = 0;
 
 	static int buffer_position = 0;
+	static int retransmit_attempts = 0;
 
 	channel_state state = channel_monitor_get_state();
-	if(state == COLLISION || buffer_position == transmission_length) {
-	//if(channel_monitor_get_state() == BUSY || buffer_position == 8) {
 
-		tim3->DIER &= ~(0b01 << 1); // disable interrupts
 
-		if(state == COLLISION) {
-			raise_error(TRANSMISSION_ON_COLLISION);
-			printf("Collision on buffer pos = %d, transmission_len = %d\n", buffer_position, transmission_length);
+	int transmit_sv = ((status >> 1) & 1) & ((tim3->DIER >> 1) & 1);
+	int retransmit_sv = ((status >> 2) & 1) & ((tim3->DIER >> 2) & 1);
+
+	if(transmit_sv) {
+
+		if(state == COLLISION || buffer_position == transmission_length) {
+
+			// If the transmission is over
+			tim3->DIER &= ~(0b01 << 1); // disable interrupts
+
+			if(state == COLLISION) {
+				if(retransmit_attempts < 10) {
+					srand(tim3->CNT);
+					tim3->CCR2 = (uint16_t)(tim3->CCR1) + (17600 + (rand() % 17600));
+					tim3->DIER |= (0b01 << 2);
+					retransmit_attempts++;
+				} else {
+					retransmit_attempts = 0;
+					raise_error(TX_ON_COLLISION);
+					printf("Transmission failed: tx on collision");
+				}
+
+			} else {
+				transmission_length = -1;  	// don't transmit
+			}
+
+			buffer_position = 0;	   	// reset the buffer position
+			gpioa->ODR |= 1 << 6;		// let the line go high
+
+		} else {
+			// Else, we're still transmitting
+			tim3->CCR1 += HALF_BIT_PERIOD;  // next interrupt fires last time + 500uS
+			gpioa->BSRR = (1 << (6 + 16*(1 - transmissionBuffer[buffer_position++])));
 		}
-		buffer_position = 0;	   	// reset the buffer position
-		transmission_length = -1;  	// don't transmit
-		gpioa->ODR |= 1 << 6;		// let the line go high
-		return;
-
 	}
 
-	tim3->CCR1 += HALF_BIT_PERIOD;  // next interrupt fires last time + 500uS
+	if(retransmit_sv) {
+		tim3->DIER &= ~(0b01 << 2);
+		buffer_position = 0;	   	// reset the buffer position
+		tim3->DIER |= (0b01 << 1);
+	}
 
-	gpioa->BSRR = (1 << (6 + 16*(1 - transmissionBuffer[buffer_position++])));
-	gpioc->BSRR    |=  (1 << 16);
+	gpioc->BSRR |= (1 << 16);	// out of the interrupt
 }
 
 int transmit_halfbits(void) {
@@ -131,7 +154,7 @@ int transmit_halfbits(void) {
 	}
 
 	if(channel_monitor_get_state() == BUSY) {
-		raise_error(TRANSMISSION_ON_BUSY);
+		raise_error(TX_ON_BUSY);
 	}
 
 	tim3->CCR1 = (tim3->CNT); // trigger on current time + 500uS

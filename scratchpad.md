@@ -16,4 +16,6 @@ typedef struct {
 - [x] integrate packets into
     - [x] transmitter
     - [x] receiver
-- [ ] random backoff on collision
+- [x] random backoff on collision
+- [ ] recv on global 
+- [ ] bug: loopback then transmit breaks

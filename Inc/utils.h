@@ -3,8 +3,8 @@
 
 
 typedef enum {
-	TRANSMISSION_ON_BUSY,
-	TRANSMISSION_ON_COLLISION,
+	TX_ON_BUSY,
+	TX_ON_COLLISION,
 } error;
 
 typedef struct {
