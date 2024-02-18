@@ -4,7 +4,7 @@
 
 int transmit_halfbits(void);
 
-int get_transmission(void);
+int transmit(void);
 
 void transmit_init();
 

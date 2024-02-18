@@ -25,6 +25,7 @@
 static volatile RCC *const rcc = (RCC*)RCC_BASE;
 static volatile GPIOX *const gpiob = (GPIOX*) GPIOB;
 static volatile GPIOX *const gpioa = (GPIOX*) GPIOA;
+static volatile GPIOX *const gpioc = (GPIOX*) GPIOC;
 static volatile TIMX_16 *tim2 = (TIMX_16*) TIM2;
 static volatile TIMX_16 *tim4 = (TIMX_16*) TIM4;
 static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
@@ -51,76 +52,6 @@ static channel_state state = IDLE;
 channel_state channel_monitor_get_state(void) {
 	return state;
 }
-
-
-//function that serializes it (buffer of 1s and 0s, state before transmission)
-void serializePacket(Packet *packet, uint8_t *buffer, int buffer_size) {
-    //Calculate total packet size // dont needs this??
-    //size_t total_size = sizeof(Header) + packet->header.length + sizeof(packet->trailer_crc);
-
-    //Serialize header
-    memcpy(buffer, &(packet->header), sizeof(Header));
-    //Serialize message
-    memcpy(&buffer[5], packet->message, packet->header.length);
-    //Serialize trailer CRC
-    memcpy(&buffer[5+packet->header.length], &(packet->trailer_crc),sizeof(uint8_t));
-    free_packet(packet);
-
-    //Update buffer size (Each byte is 8 bits)
-    //*buffer_size = total_size * 8; //dont need this???
-}
-
-
-
-//function that deserailizes it and returns a struct
-		//check whether the address is correct if it isn't break
-Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
-	//Expected size for header and trailer
-	size_t expected_size = sizeof(Header) + sizeof(uint8_t);
-    //Check if buffer size is sufficient for header and trailer
-    if (buffer_size_bits < expected_size) {
-    	printf("Error: Insufficient buffer size for header and trailer. Expected: %u, Actual: %u \n", expected_size, buffer_size_bits);
-        return NULL; //Not enough data for header and trailer
-    }
-
-    //Adjust buffer size to bytes
-  //  size_t buffer_size_bytes = (buffer_size_bits + 7) / 8;
-
-    //Allocate memory for packet
-    Packet *packet = (Packet*)malloc(sizeof(Packet));
-    if (packet == NULL) {
-        return NULL; //Memory allocation failed
-    }
-
-    //Deserialize header
-	memcpy(&(packet->header), buffer, sizeof(Header));
-    char* msg = malloc(sizeof(char)*packet->header.length);
-    memcpy(msg,&buffer[5],packet->header.length);
-	memcpy(&(packet->trailer_crc), &buffer[4 + packet->header.length], sizeof(uint8_t));
-
-
-    printf("Deserialized Header: \n");
-    printf("Preamble: 0x%02X\n", packet->header.preamble);
-    printf("Source Address: 0x%02X\n", packet->header.source_address);
-    printf("Destination Address: 0x%02X\n", packet->header.destination_address);
-    printf("Length: 0x%02X\n", packet->header.length);
-    printf("CRC Flag: 0x%02X\n", packet->header.crc_flag);
-
-    //Check if source and destination addresses are within the acceptable range
-    if ((packet->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {
-        free_packet(packet); //Free memory before returning NULL
-        return NULL; //Invalid source or destination address
-    }
-
-
-    return packet;
-}
-//Free message and packet
-void free_packet(Packet * packet){
-	free(packet->message);
-	free(packet);
-}
-
 
 
 static int receiving = 0;
@@ -155,7 +86,7 @@ void recv_post() {
 
 void recv_decode() {
 	recv_wait();
-	char msg_buffer[200];
+	Packet* received = manchester_decode(recv_buffer, recv_buffer_size);
 //	for(int i = 0; i < recv_buffer_size; i ++) {
 //		printf("%c", recv_buffer[i] == 0 ? '0':'1');
 //		if((i+1) % 8 == 0) {
@@ -163,8 +94,7 @@ void recv_decode() {
 //		}
 //
 //	}
-	manchester_decode(recv_buffer, recv_buffer_size, msg_buffer);
-	printf("received: %s\n", msg_buffer);
+	printf("received: %s from %x\n", received->message, received->header.source_address);
 	recv_post();
 }
 
@@ -179,68 +109,71 @@ void channel_monitor_init(void) {
 }
 
 //rx pin int on edge
-void tim2_init(void){
-	gpiob->MODER  &= ~(0b11 << 8*2);	// PB8 is in input mode (00)
-	gpiob->ODR    |=  (1 << 8);
+//void tim2_init(void){
+//	gpiob->MODER  &= ~(0b11 << 8*2);	// PB8 is in input mode (00)
+//	gpiob->ODR    |=  (1 << 8);
+//
+//	rcc->APB1ENR |= TIM2_EN;
+//
+//	// configure TIM2_CH1 as TIC
+//	tim2->CCMR1  &= ~(0b11 << 0);		// clear CC1S bits
+//	tim2->CCMR1  |=  (0b01 << 0);		// tim2_ch1 is in input capture mode
+//
+//	tim2->CCER &= ~(1 << 1);      		// clear CC1P (active on rising edge)
+//	tim2->CCER |= (1 << 0);        		// enable capture on CC1 pin
+//
+//	tim2->DIER |= 0b11 << 1;   			// enable TIC interrupts
+//
+//	nvic_iser[0] |= (1 <<28); 			// TIM2 global interrupt is in NVIC_ISER0[30]
+//	tim2->CR1 |= 1;					    // Start the timer
+//}
+//
 
-	rcc->APB1ENR |= TIM2_EN;
-
-	// configure TIM2_CH1 as TIC
-	tim2->CCMR1  &= ~(0b11 << 0);		// clear CC1S bits
-	tim2->CCMR1  |=  (0b01 << 0);		// tim2_ch1 is in input capture mode
-
-	tim2->CCER &= ~(1 << 1);      		// clear CC1P (active on rising edge)
-	tim2->CCER |= (1 << 0);        		// enable capture on CC1 pin
-
-	tim2->DIER |= 0b11 << 1;   			// enable TIC interrupts
-
-	nvic_iser[0] |= (1 <<28); 			// TIM2 global interrupt is in NVIC_ISER0[30]
-	tim2->CR1 |= 1;					    // Start the timer
-}
-
-
-void TIM2_IRQHandler(void){
-	static uint8_t msg[510]; //Assuming maximum message length of 255 bytes
-	static int msg_index = 0;
-	static uint16_t last_capture = 0;
-	if(state == BUSY && tim2->SR &(1<<1)){//Check if the interrupt flag is set
-									      //and that we're busy
-        //Read captured value
-        uint16_t capture_value = tim2->CCR1;
-        uint16_t time_elapsed = capture_value - last_capture;
-
-        // Reset the sampling clock using the middle of the bit period
-        tim2->CCR1 = last_capture + time_elapsed / 2;
-
-        //Store Manchester bit in the message buffer
-        msg[msg_index++] = capture_value;
-
-        //Check if we have received enough bits to decode a byte
-        if (msg_index >= 16) {
-            char decoded[255]; //Assuming maximum message length of 255 bytes
-            if (manchester_decode(msg, 16, decoded) == 0) {
-                //Print decoded ASCII text to console
-                printf("%s", decoded);
-            }
-            msg_index = 0; //Reset message index for the next byte
-        }
-
-        // Update the last capture value
-        last_capture = capture_value;
-
-		tim2->SR &= ~(1<<1);//Clear TIM2_CH1 interrupt flag
-	}
-}
-
+//void TIM2_IRQHandler(void){
+//	static uint8_t msg[510]; //Assuming maximum message length of 255 bytes
+//	static int msg_index = 0;
+//	static uint16_t last_capture = 0;
+//	if(state == BUSY && tim2->SR &(1<<1)){//Check if the interrupt flag is set
+//									      //and that we're busy
+//        //Read captured value
+//        uint16_t capture_value = tim2->CCR1;
+//        uint16_t time_elapsed = capture_value - last_capture;
+//
+//        // Reset the sampling clock using the middle of the bit period
+//        tim2->CCR1 = last_capture + time_elapsed / 2;
+//
+//        //Store Manchester bit in the message buffer
+//        msg[msg_index++] = capture_value;
+//
+//        //Check if we have received enough bits to decode a byte
+//        if (msg_index >= 16) {
+//            char decoded[255]; //Assuming maximum message length of 255 bytes
+//            if (manchester_decode(msg, 16, decoded) == 0) {
+//                //Print decoded ASCII text to console
+//                printf("%s", decoded);
+//            }
+//            msg_index = 0; //Reset message index for the next byte
+//        }
+//
+//        // Update the last capture value
+//        last_capture = capture_value;
+//
+//		tim2->SR &= ~(1<<1);//Clear TIM2_CH1 interrupt flag
+//	}
+//}
+//
 
 // channel 1: tic
 // channel 2: toc
 void tim4_init(void) {
 
 	/* PB6 is the input pin for TIC on TIM4_CH1 */
-	rcc->AHB1ENR |= GPIOB_EN;			// enable GPIOB in RCC
+	rcc->AHB1ENR |= GPIOB_EN | GPIOC_EN;			// enable GPIOB in RCC
 	gpiob->AFRL  |= (0b0010 << 6 * 4); 	// PB6 is AF02 (TIM4_CH1)
 	gpiob->MODER |= (0b10 << 6*2);
+
+	gpioc->MODER  &= ~(0b11 << 1*2);
+	gpioc->MODER  |=  (0b01 << 1*2);
 
 	/* TIM4 setup */
 	rcc->APB1ENR |= TIM4_EN;			// enable TIM4 in RCC
@@ -269,12 +202,15 @@ void tim4_init(void) {
 	tim4->DIER |= 0b11 << 1;   // enable TIC interrupts
 
 	nvic_iser[0] |= (1 << 30); // TIM4 global interrupt is in NVIC_ISER0[30]
+	tim4->DIER |= (1 << 2);    // Enable timeout interrupt
 	tim4->CR1 |= 1; 		   // start the timer
+
 }
 
 void TIM4_IRQHandler(void) {
+	gpioc->BSRR    |=  (1 << 1);
 	state = IDLE;
-	static uint8_t line_state;
+	static uint8_t line_state = 1;
 	recv_buffer[0] = 1;				// NOTE: hardcoding the first bit as 0,
 									// so first symbol is 1 (first recv symbol is falling edge)
 	int status = tim4->SR;
@@ -332,6 +268,7 @@ void TIM4_IRQHandler(void) {
 
 	monitor_led_set(state);
 	tim4->SR = 0;
+	gpioc->BSRR    |=  (1 << 17);
 }
 
 void monitor_led_init() {

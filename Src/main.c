@@ -29,8 +29,6 @@
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
-uint8_t buffer1[1024];
-int buffer_size = 1024;
 
 int main(void) {
 	init_usart2(57600,F_CPU);
@@ -44,31 +42,31 @@ int main(void) {
     /* Loop forever */
 	while(1) {
 		// Example serialized data (binary)
-		Packet* to_serialize = malloc(sizeof(Packet));
-		to_serialize->header.preamble = 0xAA;
-		to_serialize->header.source_address = 0;
-		to_serialize->header.destination_address = 0x15;
-		to_serialize->header.length = 5;
-		to_serialize->header.crc_flag = 1;
-		to_serialize->message = malloc(sizeof(char) * 5);
-		strcpy(to_serialize->message, "test\n");
-		to_serialize->trailer_crc = 1;
-		serializePacket(to_serialize, buffer1, buffer_size);
-
-		//Deserialize the buffer
-		Packet *packet = deserializePacket(buffer1, buffer_size);
-
-		 //Check if deserialization was successful
-		if (packet != NULL) {
-			printf("Deserialization successful!\n");
-			printf("Source Address: 0x%02X\n", packet->header.source_address);
-			printf("Destination Address: 0x%02X\n", packet->header.destination_address);
-			printf("Message: %s", packet->message);
-			// Free allocated memory for packet
-			free_packet(packet);
-		} else {
-			printf("Deserialization failed! Invalid source or destination address.\n");
-		}
+//		Packet* to_serialize = malloc(sizeof(Packet));
+//		to_serialize->header.preamble = 0xAA;
+//		to_serialize->header.source_address = 0;
+//		to_serialize->header.destination_address = 0x15;
+//		to_serialize->header.length = 5;
+//		to_serialize->header.crc_flag = 1;
+//		to_serialize->message = malloc(sizeof(char) * 5);
+//		strcpy(to_serialize->message, "test\n");
+//		to_serialize->trailer_crc = 1;
+//		serializePacket(to_serialize, buffer1, buffer_size);
+//
+//		//Deserialize the buffer
+//		Packet *packet = deserializePacket(buffer1, buffer_size);
+//
+//		 //Check if deserialization was successful
+//		if (packet != NULL) {
+//			printf("Deserialization successful!\n");
+//			printf("Source Address: 0x%02X\n", packet->header.source_address);
+//			printf("Destination Address: 0x%02X\n", packet->header.destination_address);
+//			printf("Message: %s", packet->message);
+//			// Free allocated memory for packet
+//			free_packet(packet);
+//		} else {
+//			printf("Deserialization failed! Invalid source or destination address.\n");
+//		}
 
         printf("mcdd> ");
         char buffer[300];
@@ -81,14 +79,20 @@ int main(void) {
         	printf("\nEnter a message: \n");
         	char message[300];
         	fgets(message, 299, stdin);
-        	get_transmission(message);
+        	transmit(message);
         } else if(!strcmp(buffer,"\null")) {
-            get_transmission("\\0");
+            transmit("\\0");
         } else if(!strcmp(buffer, "\\r")) {
         	printf("Receiving:\n");
         	recv_set();
         	recv_wait();				// takes the semaphore: interrupt owns it
         	recv_decode();				// this is the function that blocks
+        } else if(!strcmp(buffer, "\\lo")) {
+        	printf("Entering loopback mode: sending a message\n");
+        	recv_set();
+        	transmit("This is a test message");
+        	recv_wait();				// takes the semaphore: interrupt owns it
+        	recv_decode();
         } else {
             printf("Error: unknown command %s\n", buffer);
         }

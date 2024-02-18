@@ -12,6 +12,7 @@
 
 #define GPIOA 0x40020000
 #define GPIOB 0x40020400
+#define GPIOC 0x40020800
 
 #define STK_BASE 0xE000E010
 #define TIM2  0x40000000
@@ -21,11 +22,12 @@
 #define CPACR 0xE000ED88
 #define NVIC_ISER 0xE000E100
 
-#define GPIOA_EN (1<<0);
-#define GPIOB_EN (1<<1);
-#define TIM2_EN  (1<<0);
-#define TIM3_EN  (1<<1);
-#define TIM4_EN  (1<<2);
+#define GPIOA_EN (1<<0)
+#define GPIOB_EN (1<<1)
+#define GPIOC_EN (1<<2)
+#define TIM2_EN  (1<<0)
+#define TIM3_EN  (1<<1)
+#define TIM4_EN  (1<<2)
 
 #define FPU_EN (0xF << 20);
 

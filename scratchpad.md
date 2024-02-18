@@ -11,3 +11,9 @@ typedef struct {
     uint8_t *message;
     uint8_t trailer_crc;
 } Packet;
+
+## TODOs
+- [x] integrate packets into
+    - [x] transmitter
+    - [x] receiver
+- [ ] random backoff on collision

@@ -14,19 +14,6 @@
 #define MAX_MESSAGE_LENGTH 255
 
 //Stuct w all data fields for the message
-typedef struct {
-    uint8_t preamble;
-    uint8_t source_address;
-    uint8_t destination_address;
-    uint8_t length;
-    uint8_t crc_flag;
-} Header;
-
-typedef struct {
-    Header header;
-    char* message;
-    uint8_t trailer_crc;
-} Packet;
 
 typedef enum {
 	BUSY,
@@ -37,9 +24,6 @@ typedef enum {
 void channel_monitor_init();
 channel_state channel_monitor_get_state(void);
 
-void serializePacket(Packet *packet, uint8_t *buffer, int buffer_size);
-Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size);
-void free_packet(Packet * packet);
 
 int recv_set(void);
 int recv_clear(void);
