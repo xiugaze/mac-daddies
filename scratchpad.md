@@ -17,5 +17,6 @@ typedef struct {
     - [x] transmitter
     - [x] receiver
 - [x] random backoff on collision
-- [ ] recv on global 
+- [x] recv on global 
+- [ ] how to test collision?
 - [ ] bug: loopback then transmit breaks

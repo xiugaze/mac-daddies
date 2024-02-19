@@ -136,8 +136,8 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
         return NULL; //Not enough data for header and trailer
     }
 
-    //Adjust buffer size to bytes
-  //  size_t buffer_size_bytes = (buffer_size_bits + 7) / 8;
+    // Adjust buffer size to bytes
+    // size_t buffer_size_bytes = (buffer_size_bits + 7) / 8;
 
     //Allocate memory for packet
     Packet *packet = (Packet*)malloc(sizeof(Packet));
@@ -145,19 +145,23 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
         return NULL; //Memory allocation failed
     }
 
-    //Deserialize header
+    // de-serialize header
 	memcpy(&(packet->header), buffer, sizeof(Header));
+
+	// Check if source and destination addresses are within the acceptable range
+	// if it's not global it's not in the
+	if (packet->header.destination_address != 0 &&
+			(packet ->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {
+	    printf("Packet received for address %x, discarded\n", packet->header.destination_address);
+	    free_packet(packet); //Free memory before returning NULL
+	    return NULL; //Invalid source or destination address
+	}
+
+	// else, decode the message
+
     char* msg = malloc(sizeof(char)*packet->header.length);
     memcpy(msg,&buffer[5],packet->header.length);
 	memcpy(&(packet->trailer_crc), &buffer[4 + packet->header.length], sizeof(uint8_t));
-
-
-    //Check if source and destination addresses are within the acceptable range
-    if ((packet 	->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {
-    	printf("Packet decoded for address %x, discarded\n", packet->header.destination_address);
-        free_packet(packet); //Free memory before returning NULL
-        return NULL; //Invalid source or destination address
-    }
 
     return packet;
 }
