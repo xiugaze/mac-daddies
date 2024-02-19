@@ -56,7 +56,6 @@ int main(void) {
         	uint8_t addr;
         	fgets(addr_msg, 19, stdin);
         	sscanf(addr_msg, "%d", (int*)&addr);
-
         	printf("Transmitting \"%s\" to address 0x%x\n", message, addr);
         	transmit(message, addr);
         } else if(!strcmp(buffer, "\\r")) {
@@ -69,6 +68,12 @@ int main(void) {
         	recv_set();
         	transmit("This is a test message", 0x15);
         	recv_wait();				// takes the semaphore: interrupt owns it
+        	recv_decode();
+        } else if(!strcmp(buffer, "\\bd")) {
+        	printf("Entering loopback mode: sending a message\n");
+        	recv_set();
+          	transmit("This is a broadcast message", 0x00);
+        	recv_wait();
         	recv_decode();
         } else {
             printf("Error: unknown command %s\n", buffer);

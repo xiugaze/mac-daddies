@@ -161,6 +161,7 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
 
     char* msg = malloc(sizeof(char)*packet->header.length);
     memcpy(msg,&buffer[5],packet->header.length);
+    packet->message = msg;
 	memcpy(&(packet->trailer_crc), &buffer[4 + packet->header.length], sizeof(uint8_t));
 
     return packet;

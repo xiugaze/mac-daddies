@@ -26,7 +26,6 @@ static volatile RCC *const rcc = (RCC*)RCC_BASE;
 static volatile GPIOX *const gpiob = (GPIOX*) GPIOB;
 static volatile GPIOX *const gpioa = (GPIOX*) GPIOA;
 static volatile GPIOX *const gpioc = (GPIOX*) GPIOC;
-static volatile TIMX_16 *tim2 = (TIMX_16*) TIM2;
 static volatile TIMX_16 *tim4 = (TIMX_16*) TIM4;
 static volatile uint32_t* const nvic_iser = (uint32_t*)NVIC_ISER;
 
@@ -96,6 +95,7 @@ void channel_monitor_init(void) {
 // channel 1: tic
 // channel 2: toc
 // channel 3: recv oversample
+static uint8_t line_state = 0;
 void tim4_init(void) {
 
 	/* PB6 is the input pin for TIC on TIM4_CH1 */
@@ -134,14 +134,21 @@ void tim4_init(void) {
 
 	nvic_iser[0] |= (1 << 30); // TIM4 global interrupt is in NVIC_ISER0[30]
 	tim4->DIER |= (1 << 2);    // Enable timeout interrupt
-	tim4->CR1 |= 1; 		   // start the timer
+	tim4->CR1  |= 1; 		   // start the timer
+
+	int i = 1000;
+	while(i > 0) { i--; }
+
+    line_state = (gpiob->IDR >> 6) & 0b01;
+	monitor_led_set(line_state ? IDLE:COLLISION);
 
 }
+
 
 void TIM4_IRQHandler(void) {
 	gpioc->BSRR    |=  (1 << 1);
 	state = IDLE;
-	static uint8_t line_state = 1;
+
 	recv_buffer[0] = 1;				// NOTE: hardcoding the first bit as 0,
 									// so first symbol is 1 (first recv symbol is falling edge)
 	int status = tim4->SR;

@@ -114,21 +114,22 @@ void TIM2_IRQHandler(void) {
 
 			if(state == COLLISION) {
 				if(retransmit_attempts < 10) {
-					srand(tim2->CNT);
+
 					// backoff is current time + (0-1000000) clock cycles = 0-1 s
 					int backoff = (rand()%200) * (80000); // N/Nmax * 1s = N * 100000/2000 = N*5000;
-					tim2->CCR2 = (uint32_t)(tim2->CCR1) + backoff;
+					tim2->CCR2 = (uint32_t)(tim2->CNT) + backoff;
 					tim2->DIER |= (0b01 << 2);
 					retransmit_attempts++;
 					printf("collision, retransmit attempts %d\n", retransmit_attempts);
 				} else {
 					retransmit_attempts = 0;
 					raise_error(TX_ON_COLLISION);
-					printf("Transmission failed: tx on collision\n");
+					printf("Transmission failed: tx on collision\nmcdd>");
 				}
 
 			} else {
 				transmission_length = -1;  	// don't transmit
+				retransmit_attempts = 0;
 			}
 
 			buffer_position = 0;	   	// reset the buffer position
@@ -144,6 +145,7 @@ void TIM2_IRQHandler(void) {
 	if(retransmit_sv) {
 		tim2->DIER &= ~(0b01 << 2);
 		buffer_position = 0;	   	// reset the buffer position
+		tim2->CCR1 = (tim2->CNT) + (HALF_BIT_PERIOD);
 		tim2->DIER |= (0b01 << 1);
 	}
 
@@ -151,12 +153,15 @@ void TIM2_IRQHandler(void) {
 }
 
 int transmit_halfbits(void) {
+	srand(tim2->CNT);
 	if(transmission_length < 0) {
 		return -1;
 	}
 
 	if(channel_monitor_get_state() == BUSY) {
-		raise_error(TX_ON_BUSY);
+		printf("Warning: line is busy, waiting...\n");
+		while(channel_monitor_get_state() == BUSY) {}
+		printf("Line is open, transmitting\n");
 	}
 
 	tim2->CCR1 = (tim2->CNT) + 1000; // trigger on current time + 500uS
