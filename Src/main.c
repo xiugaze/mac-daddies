@@ -57,7 +57,6 @@ int main(void) {
         	fgets(addr_msg, 19, stdin);
         	sscanf(addr_msg, "%d", (int*)&addr);
 
-
         	printf("Transmitting \"%s\" to address 0x%x\n", message, addr);
         	transmit(message, addr);
         } else if(!strcmp(buffer, "\\r")) {

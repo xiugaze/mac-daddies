@@ -78,8 +78,6 @@ void transmit_init() {
 
 	tim2->CCMR1 &= ~(0b11 << 0);		// clear CC1S bits, tim3_ch1 is in output mode
 	//tim3->CCR1 = HALF_BIT_PERIOD;		// interrupt fires on HALF_BIT_PERIOD
-	tim2->PSC = 15; 						// 15+1 = 16, frequency is divided by 16 = 1MHz
-
 	// Configure TOC for retransmit
 	tim2->CCMR1 &= ~(0b11 << 8);		// clear CC2S bits, tim4_ch2 is in output mode
 	tim2->CCR2 = 0;						// Placeholder
@@ -118,7 +116,7 @@ void TIM2_IRQHandler(void) {
 				if(retransmit_attempts < 10) {
 					srand(tim2->CNT);
 					// backoff is current time + (0-1000000) clock cycles = 0-1 s
-					int backoff = (rand()%200) * (5000); // N/Nmax * 1s = N * 100000/2000 = N*5000;
+					int backoff = (rand()%200) * (80000); // N/Nmax * 1s = N * 100000/2000 = N*5000;
 					tim2->CCR2 = (uint32_t)(tim2->CCR1) + backoff;
 					tim2->DIER |= (0b01 << 2);
 					retransmit_attempts++;
@@ -138,7 +136,7 @@ void TIM2_IRQHandler(void) {
 
 		} else {
 			// Else, we're still transmitting
-			tim2->CCR1 += (HALF_BIT_PERIOD/16);  // next interrupt fires last time + 500uS
+			tim2->CCR1 += (HALF_BIT_PERIOD);  // next interrupt fires last time + 500uS
 			gpioa->BSRR = (1 << (6 + 16*(1 - transmissionBuffer[buffer_position++])));
 		}
 	}
@@ -161,7 +159,7 @@ int transmit_halfbits(void) {
 		raise_error(TX_ON_BUSY);
 	}
 
-	tim2->CCR1 = (tim2->CNT); // trigger on current time + 500uS
+	tim2->CCR1 = (tim2->CNT) + 1000; // trigger on current time + 500uS
 	tim2->DIER |= 0b01 << 1;  // enable interrupts on channel 1
 	return 0;
 }
