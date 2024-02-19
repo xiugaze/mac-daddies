@@ -68,13 +68,13 @@ void transmit_init() {
 
 	gpioa->MODER  &= ~(0b11 << 6*2);
 	gpioa->MODER  |=  (0b01 << 6*2);	// PA6 is in output mode
-	gpioa->OTYPER  |= (1 << 6);
+	gpioa->OTYPER |=  	(1 << 6);
 	gpioa->ODR    |=  (1 << 6);
 
 	gpioc->MODER  &= ~(0b11 << 0*2);
 	gpioc->MODER  |=  (0b01 << 0*2);
 
-	rcc->APB1ENR |= TIM3_EN;			// enable TIM3
+	rcc->APB1ENR |= TIM2_EN;			// enable TIM2
 
 	tim2->CCMR1 &= ~(0b11 << 0);		// clear CC1S bits, tim3_ch1 is in output mode
 	//tim3->CCR1 = HALF_BIT_PERIOD;		// interrupt fires on HALF_BIT_PERIOD
@@ -85,7 +85,7 @@ void transmit_init() {
 	tim2->CCR2 = 0;						// Placeholder
 
 
-	nvic_iser[0] |= (1 << 29);			// TIM3 global interrupt is vector 29
+	nvic_iser[0] |= (1 << 28);			// TIM3 global interrupt is vector 28
 	tim2->CR1 |= 0b01;					// Start the timer
 }
 
@@ -93,7 +93,7 @@ void transmit_init() {
  * TIMER3 IRQ is supposed to iterate through the transmission buffer
  * and write the value to the IDR.
  */
-void TIM3_IRQHandler(void) {
+void TIM2_IRQHandler(void) {
 	gpioc->BSRR   |=  (1 << 0);		// in the interrupt
 	uint32_t status = tim2->SR;
 	tim2->SR = 0;
