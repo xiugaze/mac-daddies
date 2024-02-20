@@ -84,9 +84,6 @@ int serializePacket(Packet *packet, uint8_t *buffer, int buffer_size) {
     free_packet(packet);
 
     return length_bytes;
-
-    //Update buffer size (Each byte is 8 bits)
-    //*buffer_size = total_size * 8; //dont need this???
 }
 
 Packet* test_packet(void) {

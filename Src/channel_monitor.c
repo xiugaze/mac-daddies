@@ -182,8 +182,8 @@ void TIM4_IRQHandler(void) {
 	// Service the edge
 	if(edge_sv) {
 		uint16_t punch = tim4->CCR1;
-		line_state = (gpiob->IDR >> 6) & 0b01;		//what line level is at on edge
-		tim4->CCR2 = punch + CYCLES_1_1_MS;	//rest to time where edge + 1.1
+		line_state = (gpiob->IDR >> 6) & 0b01;	//what line level is at on edge
+		tim4->CCR2 = punch + CYCLES_1_1_MS;		//rest to time where edge + 1.1
 		tim4->DIER |= (1 << 2);
 		state = BUSY;
 
