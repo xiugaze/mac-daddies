@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "utils.h"
+#include "crc8.h"
 
 int pair_to_bit(uint8_t pair[]) {
     if(pair[0] == 0 && pair[1] == 1) {
@@ -57,8 +58,13 @@ Packet* manchester_decode(uint8_t msg[], int len) {
 
 
     Packet* p = deserializePacket(decoded, 1024);
-    return p;
-    return 0;
+    if(p != NULL) {
+    	return p;
+    } else {
+    	return NULL;
+    }
+
+
 }
 
 static int error_pos = 0;
@@ -78,9 +84,11 @@ int serializePacket(Packet *packet, uint8_t *buffer, int buffer_size) {
     //Serialize message
     memcpy(&buffer[5], packet->message, packet->header.length);
     //Serialize trailer CRC
-    memcpy(&buffer[5+packet->header.length], &(packet->trailer_crc),sizeof(uint8_t));
-
-    int length_bytes = sizeof(Header) +  packet->header.length + sizeof(uint8_t);
+    buffer[5+packet->header.length] = packet->trailer_crc;
+    uint8_t trailer_2 = buffer[5+packet->header.length - 2];
+    uint8_t trailer_1 = buffer[5+packet->header.length - 1];
+    uint8_t trailer = buffer[5+packet->header.length];
+    int length_bytes = sizeof(Header) + packet->header.length + sizeof(uint8_t);
     free_packet(packet);
 
     return length_bytes;
@@ -99,7 +107,7 @@ Packet* test_packet(void) {
 
 	p->message = malloc(sizeof(uint8_t) * p->header.length);
 	strcpy(p->message, message);
-	p->trailer_crc = 0;
+	p->trailer_crc = calculate_crc(message, strlen(message));
 
 	return p;
 }
@@ -110,12 +118,12 @@ Packet* new_packet(char message[], uint8_t destination) {
 	p->header.preamble = 0x55;
 	p->header.source_address = 0x15;
 	p->header.destination_address = destination;
-	p->header.length = strlen(message + 1);
-	p->header.crc_flag = 0;
+	p->header.length = strlen(message) + 1;
+	p->header.crc_flag = 1;
 
 	p->message = malloc(sizeof(uint8_t) * p->header.length);
 	strcpy(p->message, message);
-	p->trailer_crc = 0;
+	p->trailer_crc = calculate_crc(message, strlen(message));
 
 	return p;
 
@@ -147,10 +155,10 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
 
 	// Check if source and destination addresses are within the acceptable range
 	// if it's not global it's not in the
-	if (packet->header.destination_address != 0 &&
+	if (packet->header.destination_address != 0xFF &&
 			(packet ->header.destination_address < 0x14 || packet->header.destination_address > 0x17)) {
 	    printf("Packet received for address %x, discarded\n", packet->header.destination_address);
-	    free_packet(packet); //Free memory before returning NULL
+	    free(packet); //Free memory before returning NULL
 	    return NULL; //Invalid source or destination address
 	}
 
@@ -159,7 +167,11 @@ Packet* deserializePacket(const uint8_t *buffer, size_t buffer_size_bits) {
     char* msg = malloc(sizeof(char)*packet->header.length);
     memcpy(msg,&buffer[5],packet->header.length);
     packet->message = msg;
-	memcpy(&(packet->trailer_crc), &buffer[4 + packet->header.length], sizeof(uint8_t));
+    uint8_t trailer_2 = buffer[5+packet->header.length - 2];
+       uint8_t trailer_1 = buffer[5+packet->header.length - 1];
+       uint8_t trailer = buffer[5+packet->header.length];
+
+	packet->trailer_crc = buffer[sizeof(Header)+ packet->header.length];
 
     return packet;
 }
@@ -168,5 +180,8 @@ void free_packet(Packet * packet){
 	free(packet->message);
 	free(packet);
 }
+
+
+
 
 

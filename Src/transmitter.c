@@ -30,7 +30,6 @@ int transmit_halfbits(void);
 
 int transmit(char userInput[], uint8_t dst_addr){
 
-
 	//Getting rid of the newline char
 	int len = strlen(userInput);
 	if (len > 0 && userInput[len - 1] == '\n') {
@@ -39,6 +38,7 @@ int transmit(char userInput[], uint8_t dst_addr){
 
 	// TODO: variable destination
 	Packet* to_send = new_packet(userInput, dst_addr);
+	printf("tx crc: 0x%02x\n", to_send->trailer_crc);
 	uint8_t packet_buffer[1024];
 	int length_bytes = serializePacket(to_send, packet_buffer, 1024);
 
@@ -151,8 +151,6 @@ void TIM2_IRQHandler(void) {
 		tim2->DIER |= (0b01 << 1);
 
 	}
-
-
 }
 
 int transmit_halfbits(void) {

@@ -19,6 +19,7 @@
 #include <utils.h>
 #include "regs.h"
 #include "channel_monitor.h"
+#include "crc8.h"
 
 #define CYCLES_1_1_MS 17600
 
@@ -78,8 +79,18 @@ void recv_post() {
 void recv_decode() {
 	recv_wait();
 	Packet* received = manchester_decode(recv_buffer, recv_buffer_size);
-	printf("received: %s from %x\n", received->message, received->header.source_address);
+	if(received) {
+		printf("received: %s from %x\n", received->message, received->header.source_address);
+		uint8_t crc = check_crc(received->trailer_crc, received->message, strlen(received->message));
+		printf("rx crc: 0x%02x\n", crc);
+		if(!crc) {
+			printf("passes CRC, packet integrity maintained\n");
+		} else {
+			printf("fails CRC, data may be corrupted\n");
+		}
+	}
 	recv_post();
+
 }
 
 /*

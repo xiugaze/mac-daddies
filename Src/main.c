@@ -66,15 +66,22 @@ int main(void) {
         } else if(!strcmp(buffer, "\\lo")) {
         	printf("Entering loopback mode: sending a message\n");
         	recv_set();
-        	transmit("This is a test message", 0x15);
+        	transmit("This is a test loopback message", 0x15);
         	recv_wait();				// takes the semaphore: interrupt owns it
         	recv_decode();
         } else if(!strcmp(buffer, "\\bd")) {
-        	printf("Entering loopback mode: sending a message\n");
+        	printf("Entering broadcast loopback mode: sending a message\n");
         	recv_set();
-          	transmit("This is a broadcast message", 0x00);
+          	transmit("This is a broadcast message to address 0xFF", 0xFF);
         	recv_wait();
         	recv_decode();
+        } else if(!strcmp(buffer, "\\ba")) {
+        	printf("Looback: Sending a message to address 0x01\n");
+            recv_set();
+            transmit("We don't get this...", 0x01);
+            recv_wait();
+            recv_decode();
+
         } else {
             printf("Error: unknown command %s\n", buffer);
         }
